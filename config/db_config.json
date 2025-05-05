@@ -1,0 +1,10 @@
+{
+    "pheno": {
+        "path": "/mnt/nfs/R13/finngen_R13_detailed_longitudinal_1.0",
+        "type": "parquet-hive"
+    },
+    "labs": {
+        "path": "/mnt/nfs/R13/finngen_R13_kanta_lab_1.0.parquet",
+        "type": "parquet"
+    }
+}
