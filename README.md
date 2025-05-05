@@ -1,15 +1,15 @@
-# drugResponsePackage
+# Package for common analayses in  FinnGen.
 
 ## Overview
 
-The `drugResponsePackage` is an R package designed for analyzing drug response data. It provides functions for data processing, summarization, and visualization of lab measurements and drug purchases.
+The `fganalysis` is an R package designed for analyzing drug response data. It provides functions for data processing, summarization, and visualization of lab measurements and drug purchases.
 
 ## Installation
 
 You can install the package from the local directory using the following command:
 
 ```R
-devtools::install("path/to/drugResponsePackage")
+devtools::install("path/to/fganalysis")
 ```
 
 ## Usage
@@ -17,7 +17,7 @@ devtools::install("path/to/drugResponsePackage")
 After installing the package, you can load it using:
 
 ```R
-library(drugResponsePackage)
+library("fganalysis")
 ```
 
 ### Functions
