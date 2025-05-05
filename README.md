@@ -7,7 +7,7 @@ The `fganalysis-r` is an R package designed for common analyses performed in Fin
 
 ## Installation
 
-You can install the package from the local directory using the following command:
+You can install the package from the local directory using the following command after installing `devtools` package:
 
 Need to make precompiled packages of everything for sandbox.
 
