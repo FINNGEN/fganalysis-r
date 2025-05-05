@@ -25,8 +25,8 @@ library(drugResponsePackage)
 The package includes several key functions:
 
 - `create_drug_response()`: Generates a drug response dataset based on lab measurements and drug purchases.
-- `generate_response_summary()`: Summarizes the response to drugs within specified time periods before and after drug purchases.
 - `summarize_drug_response()`: Creates a summary PDF and text tables of drug response data.
+- `get_lab_measurements` and `get_drug_purchases` to query for lab values and purchases.
 
 ## Examples
 
@@ -34,19 +34,31 @@ Here is a simple example of how to use the package:
 
 ```R
 # Load the package
-library(drugResponsePackage)
+library(fganalysis)
+
+## get connection to data sources.
+conn <- connect_fgdata("config/db_config.json")
+
+## get all labs with omopid 3007461
+labs <- get_lab_measurements(conn$labs, c("3007461"))
+
+## get all drug purchases with ATC codes starting with L01B
+dr <- get_drug_purchases(conn$pheno, c("L01B"))
 
 
+# Create drug response data of lab changes after initiating a drug.
+## first define time intervals from drug purchase to summarise lab values
+## here defining pre-measurements drug measurements to be 1 year before drug and 
+## after period to be 1month to 1 year.
+before_period <- c(-1, 0)
+after_period <- c(1/12, 1)
 
+## create a dataframe containing LDL (omopid 3001308) response to first statin purchase (ATC codes starting with A10) for each finngen ID  
+resp <- create_drug_response(conn$labs,conn$pheno,c("3001308"), 
+                             druglist=c("A10"),before_period,after_period)
+## create plots and tables of the respons
+summarize_drug_response(resp, out_file_prefix="3001308_A10_resp")
 
-# Create drug response data
-response_data <- create_drug_response(response, lab_measurements, drug_purchases, before_period, after_period)
-
-# Generate a summary of the drug response
-summary_data <- generate_response_summary(lab_measurements, before_period, after_period)
-
-# Summarize and visualize the drug response
-summarize_drug_response(response_data, "output_summary")
 ```
 
 ## Testing
