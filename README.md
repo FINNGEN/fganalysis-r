@@ -9,8 +9,11 @@ The `fganalysis` is an R package designed for common analyses performed in FinnG
 
 You can install the package from the local directory using the following command:
 
-```R
+Need to make precompiled packages of everything for sandbox.
 
+```R
+Some packages might get installed from source and to speedup that, can add multithreaded compilation.... add environment variable to enable 4 threads. 
+Sys.setenv(MAKEFLAGS = "-j 4"))
 devtools::install("path/to/fganalysis")
 ```
 
@@ -75,11 +78,15 @@ If new ways to access data are introduced, add handling of such datatypes in R/c
 
 ### Testing
 
+
 The package includes unit tests to ensure the functionality of its core functions. You can run the tests using:
 
 ```R
 devtools::test()
 ```
+
+
+When adding new functionality add unit tests. See tests/testthat/test-drug_response_functions.R for examples.
 
 ## Author
 
