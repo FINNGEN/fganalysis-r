@@ -1,14 +1,16 @@
-# Package for common analayses in  FinnGen.
+# Package for common analyses in FinnGen.
 
 ## Overview
 
-The `fganalysis` is an R package designed for analyzing drug response data. It provides functions for data processing, summarization, and visualization of lab measurements and drug purchases.
+The `fganalysis` is an R package designed for common analyses performed in FinnGen.  First functionality provides functions for data processing, summarization, and visualization of lab measurements and drug purchases.
+
 
 ## Installation
 
 You can install the package from the local directory using the following command:
 
 ```R
+
 devtools::install("path/to/fganalysis")
 ```
 
@@ -61,7 +63,17 @@ summarize_drug_response(resp, out_file_prefix="3001308_A10_resp")
 
 ```
 
-## Testing
+
+## Development &  Data storage
+
+
+Install `devtools` package. When in root folder of package you can load everything with `devtools::load_all()`.  Read more about package dev with devtools here https://cran.r-project.org/web/packages/devtools/readme/README.html and https://r-pkgs.org/
+
+Database connection is defined in config/db_config.json. Currently data is stored in parquet files and queried via duckdb. This way there are no external dependencies on databases.  
+If new ways to access data are introduced, add handling of such datatypes in R/connections.R `connect_fgdata`. Returned objects should be lazy loaded dplyr::tbl objects so further processing can be done via dbplyr (https://dbplyr.tidyverse.org/)
+
+
+### Testing
 
 The package includes unit tests to ensure the functionality of its core functions. You can run the tests using:
 
