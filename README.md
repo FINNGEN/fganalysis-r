@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `fganalysis` is an R package designed for common analyses performed in FinnGen.  First functionality provides functions for data processing, summarization, and visualization of lab measurements and drug purchases.
+The `fganalysis-r` is an R package designed for common analyses performed in FinnGen.  First functionality provides functions for data processing, summarization, and visualization of lab measurements and drug purchases.
 
 
 ## Installation
@@ -22,7 +22,7 @@ devtools::install("path/to/fganalysis")
 After installing the package, you can load it using:
 
 ```R
-library("fganalysis")
+library("fganalysis-r")
 ```
 
 ### Functions
@@ -39,7 +39,7 @@ Here is a simple example of how to use the package:
 
 ```R
 # Load the package
-library(fganalysis)
+library(fganalysis-r)
 
 ## get connection to data sources.
 conn <- connect_fgdata("config/db_config.json")
