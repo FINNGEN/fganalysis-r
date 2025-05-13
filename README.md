@@ -13,7 +13,7 @@ Need to make precompiled packages of everything for sandbox.
 
 ```R
 Some packages might get installed from source and to speedup that, can add multithreaded compilation.... add environment variable to enable 4 threads. 
-Sys.setenv(MAKEFLAGS = "-j 4"))
+Sys.setenv(MAKEFLAGS = "-j 4")
 devtools::install("path/to/fganalysis")
 ```
 
