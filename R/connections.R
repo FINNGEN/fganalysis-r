@@ -20,10 +20,16 @@ get_duckdb_dbplyr <- function(duckdb_file, table) {
   return(dplyr::tbl(conn, table))
 }
 
-fg.data.connection <- function(pheno, labs) {
-    obj <- list(pheno=pheno,labs=labs)
-    class(obj) <- "fg.data.connection"
-    return(obj) 
+fg.data.connection <- function(connections) {
+    if (!is.list(connections)) {
+        stop("Connections must be a list")
+    }
+    if (!all(c("pheno", "labs") %in% names(connections))) {
+        stop("Connections list must contain 'pheno' and 'labs'")
+    }
+    ## do further checks on the connections as needed. 
+    class(connections) <- "fg.data.connection"
+    return(connections) 
 }
 
 print.fg.data.connection <- function(x, ...) {
@@ -62,14 +68,15 @@ connect_fgdata <-  function(path_to_conf) {
     req_confs <- c("pheno", "labs")
     connections <- list()
     # Extract the values from the JSON object
-    for (conf in req_confs) {
-        if (!conf %in% names(json_data)) {
-            stop(paste(conf, "not found in configuration data. Configuration file must contain the following keys:", paste(req_confs, collapse = ", ")))
-        }
-
+    if (! all(req_confs %in% names(json_data))) {
+        stop(paste("Elements not found in configuration data. Configuration file must contain the following keys:", paste(req_confs, collapse = ", ")))
+    }
+    print("loading connections")
+    for (conf in names(json_data)) {
         connections[[conf]] <- call_connect(json_data[[conf]])
     }
-    return(fg.data.connection( connections$pheno, connections$labs))
+
+    return(fg.data.connection( connections))
 }
 
 

@@ -1,0 +1,18 @@
+{
+    "pheno": {
+        "path": "/finngen/shared_nfs/R13/pheno/finngen_R13_service_sector_detailed_longitudinal_1.0.parquet",
+        "type": "parquet-hive"
+    },
+    "labs": {
+        "path": "/finngen/shared_nfs/R13/pheno/finngen_R13_kanta_lab_1.0.parquet",
+        "type": "parquet"
+    },
+    "minimum": {
+        "path": "/finngen/shared_nfs/R13/pheno/finngen_R13_minimum_extended_1.0.parquet",
+        "type": "parquet"
+    },
+    "cov_pheno:": {
+        "path": "/finngen/shared_nfs/R13/pheno/R13/R13_COV_PHENO_V0.parquet",
+        "type": "parquet"
+    }
+}

@@ -29,7 +29,8 @@ drug.response <- function(responses, lab_measurements, drug_purchases, before_pe
 #' @param finngen_ids vector of FINNGENIDs to filter the data
 #' @return drug.response object
 #' @export
-create_drug_response <- function(kanta, phenos, lablist, druglist, before_period, after_period, finngen_ids=NULL) {
+create_drug_response <- function(kanta, phenos, lablist, druglist, 
+before_period, after_period, finngen_ids=NULL) {
   print("Querying lab measurements...")
   lab_measurements <- get_lab_measurements(all_labs=kanta, lablist=lablist, finngen_ids=finngen_ids, require_values = TRUE)
   
@@ -44,6 +45,7 @@ create_drug_response <- function(kanta, phenos, lablist, druglist, before_period
   lab_measurements <- lab_measurements %>% mutate(time_to_drug = first_drug_age - EVENT_AGE)
   
   print("generating response summary...")
+
   lab_response <- generate_response_summary(lab_measurements, before_period, after_period)
   cat("Number of individuals with response data: ", nrow(lab_response), "\n")
   
@@ -156,6 +158,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
 #' @return data frame with response summary
 #' @export
 generate_response_summary <- function(lab_measurements, before_period, after_period, summary_function=median) {
+  
   lab_measurements <- lab_measurements %>% mutate(lab_period = case_when(
     between(time_to_drug, after_period[1], after_period[2]) ~ 'Before',
     between(time_to_drug, before_period[1], before_period[2]) ~ 'After',
