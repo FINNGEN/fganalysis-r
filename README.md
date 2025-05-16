@@ -44,6 +44,21 @@ library(fganalysis-r)
 ## get connection to data sources.
 conn <- connect_fgdata("config/db_config.json")
 
+##returned object has attributes that are lazy loaded data frames of different phenotype data.
+## you can start writing dplyr queries and e.g. joining to other tables. Nothing will happen before you actually request the data to be localized.
+## behind the scenes, a query engine optimizes the query and returns only the data matching your query....
+
+## query for individuals with ICD-10 code K51 (IBD)
+ibd <- conn$pheno %>% filter( (SOURCE=="INPAT"|SOURCE=="OUTPAT") & CODE1=="K51" & ICDVER=="10") %>% group_by(FINNGENID) %>% summarize(n_diagnoses=n())
+## look at the number of rows..
+
+>nrow(ibd)
+NA
+### you get NA because nothing has been queried before you ask for the data. use function collect to execute the query and return results
+ibd <- ibd %>% collect()
+nrow(ibd)
+258
+
 ## get all labs with omopid 3007461
 labs <- get_lab_measurements(conn$labs, c("3007461"))
 
@@ -63,6 +78,9 @@ resp <- create_drug_response(conn$labs,conn$pheno,c("3001308"),
                              druglist=c("A10"),before_period,after_period)
 ## create plots and tables of the respons
 summarize_drug_response(resp, out_file_prefix="3001308_A10_resp")
+
+
+
 
 ```
 
