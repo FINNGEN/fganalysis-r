@@ -7,19 +7,18 @@ Maintainer: Mitja Kurki <mitja.kurki@gmail.com>
 Description: A package for analyzing drug response data, including functions for data processing, summarization, and visualization of lab measurements and drug purchases.
 License: MIT
 Imports:
-    stringr,
     ggplot2,
     duckdb,
     duckdbfs,
-    checkmate,
     bigrquery,
-    rjson,
     stringr,
     ggpubr,
-    rjson
+    rjson,
+    dplyr,
+    plyr
 Suggests:
     testthat,
-    ggpubr
+    generics
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.2

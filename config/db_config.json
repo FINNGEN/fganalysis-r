@@ -11,7 +11,7 @@
         "path": "/mnt/nfs/R13/finngen_R13_minimum_extended_1.0.parquet",
         "type": "parquet"
     },
-    "cov_pheno:": {
+    "cov_pheno": {
         "path": "/mnt/nfs/R13/R13_COV_PHENO_V0.parquet",
         "type": "parquet"
     }
