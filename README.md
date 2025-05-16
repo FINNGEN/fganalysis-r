@@ -39,7 +39,7 @@ Here is a simple example of how to use the package:
 
 ```R
 # Load the package
-library(fganalysis-r)
+library(fganalysis)
 
 ## get connection to data sources.
 conn <- connect_fgdata("config/db_config.json")
