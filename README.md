@@ -14,7 +14,13 @@ Need to make precompiled packages of everything for sandbox.
 ```R
 Some packages might get installed from source and to speedup that, can add multithreaded compilation.... add environment variable to enable 4 threads. 
 Sys.setenv(MAKEFLAGS = "-j 4")
+
+## if installing from source, install devtools and
 devtools::install("path/to/fganalysis")
+
+## in sandbox, you can just
+install.packages("fgtools")
+
 ```
 
 ## Usage
@@ -41,8 +47,12 @@ Here is a simple example of how to use the package:
 # Load the package
 library(fganalysis)
 
-## get connection to data sources.
+## get connection to data sources. in sanbox you can find data source configuration in /finngen/shared_nfs/finngen/code/drugResponsePackage/config/db_config_sb.json
 conn <- connect_fgdata("config/db_config.json")
+### SANDBOX
+conn <- connect_fgdata("/finngen/shared_nfs/finngen/code/drugResponsePackage/config/db_config_sb.json")
+
+
 
 ##returned object has attributes that are lazy loaded data frames of different phenotype data.
 ## you can start writing dplyr queries and e.g. joining to other tables. Nothing will happen before you actually request the data to be localized.
