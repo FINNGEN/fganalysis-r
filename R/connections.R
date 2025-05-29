@@ -1,5 +1,6 @@
 
-
+#' @import DBI
+#NULL
 
 get_bigquery_dbplyr <- function(projectid,dataset, table) {
    con <- dbConnect(
@@ -7,7 +8,7 @@ get_bigquery_dbplyr <- function(projectid,dataset, table) {
     project = projectid,
     dataset=dataset
   )
-  return(plyr::tbl(con, table))
+  return(tbl(con, table))
 }
 
 get_parquet_dbplyr <- function(parquet_file) {
@@ -17,7 +18,7 @@ get_parquet_dbplyr <- function(parquet_file) {
 
 get_duckdb_dbplyr <- function(duckdb_file, table) {
   conn = dbConnect(duckdb::duckdb(duckdb_file), read_only=TRUE)
-  return(dplyr::tbl(conn, table))
+  return(tbl(conn, table))
 }
 
 fg.data.connection <- function(connections) {
