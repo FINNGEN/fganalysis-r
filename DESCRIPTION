@@ -7,7 +7,7 @@ Maintainer: Mitja Kurki <mitja.kurki@gmail.com>
 Description: A package for analyzing drug response data, including functions for data processing, summarization, and visualization of lab measurements and drug purchases.
 License: MIT
 Imports:
-    dplyr
+    dplyr,
     stringr,
     ggplot2,
     duckdb,
