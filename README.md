@@ -19,7 +19,7 @@ Sys.setenv(MAKEFLAGS = "-j 4")
 devtools::install("path/to/fganalysis")
 
 ## in sandbox, you can just
-install.packages("fgtools")
+install.packages("fganalysis")
 
 ```
 
