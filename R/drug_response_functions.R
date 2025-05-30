@@ -2,6 +2,9 @@
 #' @import ggplot2
 #' @import ggpubr
 #' @import stringr
+#' @importFrom stats median lm quantile sd
+#' @import utils
+#' @import grDevices
 #NULL
 
 #' @title data object returned from drug response analyse (create_drug_response)
@@ -38,11 +41,11 @@ before_period, after_period, finngen_ids=NULL) {
   print("Querying purchases...")
   drug_purchases <- get_drug_purchases(phenos, druglist, all_fg_ids)
   
-  dr_first_purchase <- drug_purchases %>% group_by(FINNGENID) %>% arrange(EVENT_AGE) %>%
-    summarize(n = n(), first_drug_age = first(EVENT_AGE), first_drug=first(ATC))
+  dr_first_purchase <- drug_purchases %>% group_by(.data$FINNGENID) %>% arrange(.data$EVENT_AGE) %>%
+    summarize(n = n(), first_drug_age = first(.data$EVENT_AGE), first_drug=first(.data$ATC))
   
   lab_measurements <- left_join(lab_measurements, dr_first_purchase, by = "FINNGENID")
-  lab_measurements <- lab_measurements %>% mutate(time_to_drug = first_drug_age - EVENT_AGE)
+  lab_measurements <- lab_measurements %>% mutate(time_to_drug = .data$first_drug_age - .data$EVENT_AGE)
   
   print("generating response summary...")
 
@@ -66,7 +69,7 @@ quant_text <- function(vector) {
 #' @export
 summarize_drug_response <- function(drug_response, out_file_prefix) {
 
-  labs <- drug_response$all_measurements %>% filter(!is.na(MEASUREMENT_VALUE_HARMONIZED))
+  labs <- drug_response$all_measurements %>% filter(!is.na(.data$MEASUREMENT_VALUE_HARMONIZED))
   responses <- drug_response$responses
   drugs <- drug_response$all_drug_purchases
                          
@@ -89,27 +92,27 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
                          "N events" = c(n_lab_meas, n_drugs_meas, inds_in_analysis)), rows=NULL))
   
 
-  per_drug <- responses %>% group_by(first_drug) %>% 
-    summarise(N=n(),p=summary(lm("response ~ 1", data=pick(FINNGENID,response)))$coefficients[1,4],sd=sd(response),
-    response=mean(response),
-    purch_age_dist=quant_text(baseline_age)) 
+  per_drug <- responses %>% group_by(.data$first_drug) %>% 
+    summarise(N=n(),p=summary(lm("response ~ 1", data=pick(.data$FINNGENID,.data$response)))$coefficients[1,4],sd=sd(.data$response),
+    response=mean(.data$response),
+    purch_age_dist=quant_text(.data$baseline_age)) 
 
   all_resp <- rbind(per_drug, data.frame(first_drug="All drugs", N=inds_in_analysis, 
             response=mean(responses$response), p=summary(lm("response ~ 1", data=responses))$coefficients[1,4],
             purch_age_dist=quant_text(responses$baseline_age), sd=sd(responses$response)))
 
-  write.table(all_resp %>% arrange(desc(N)) %>% 
-    select(first_drug, N, response, p, purch_age_dist),
+  write.table(all_resp %>% arrange(desc(.data$N)) %>% 
+    select(.data$first_drug, .data$N, .data$response, .data$p, .data$purch_age_dist),
     paste0(out_file_prefix, "_responses_by_drug.txt"), sep="\t", row.names=FALSE, quote=FALSE)
 
 
-  plot(ggtexttable(responses %>% group_by(first_drug) %>% 
-    summarise(n_purch=n(), n_indiv=length(unique(FINNGENID)), 
-     p=summary(lm("response ~ 1", data=pick(FINNGENID,response)))$coefficients[1,4],
-     response=mean(response),
-     purch_age_dist=quant_text(baseline_age)) %>%
-     select(first_drug, n_purch, response, p, purch_age_dist) %>%
-    arrange(desc(n_purch))))
+  plot(ggtexttable(responses %>% group_by(.data$first_drug) %>% 
+    summarise(n_purch=n(), n_indiv=length(unique(.data$FINNGENID)), 
+     p=summary(lm("response ~ 1", data=pick(.data$FINNGENID,.data$response)))$coefficients[1,4],
+     response=mean(.data$response),
+     purch_age_dist=quant_text(.data$baseline_age)) %>%
+     select(.data$first_drug, .data$n_purch, .data$response, .data$p, .data$purch_age_dist) %>%
+    arrange(desc(.data$n_purch))))
   
 
   begin <- ceiling(max(min(-labs$time_to_drug, na.rm = TRUE), drug_response$lab_response_period$before_period[1]))
@@ -118,18 +121,18 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
                   breaks=seq(begin, end, by=.25), 
                   include.lowest = TRUE)
   
-  plot(ggplot(labs %>% filter(!is.na(bin))) + geom_boxplot(aes(x=bin, y=MEASUREMENT_VALUE_HARMONIZED)) +
+  plot(ggplot(labs %>% filter(!is.na(.data$bin))) + geom_boxplot(aes(x=.data$bin, y=.data$MEASUREMENT_VALUE_HARMONIZED)) +
       labs(x="Time to drug purchase (years)", y="Lab measurement") + 
       ggtitle("Lab measurements before and after drug purchase")) +  theme_bw() +
       theme(axis.text.x = element_text(angle = 45, size=20)) +
   
 
-  write.table(labs %>% group_by(bin) %>% 
-    summarise(n=n(), mean=mean(MEASUREMENT_VALUE_HARMONIZED), sd=sd(MEASUREMENT_VALUE_HARMONIZED)),
+  write.table(labs %>% group_by(.data$bin) %>% 
+    summarise(n=n(), mean=mean(.data$MEASUREMENT_VALUE_HARMONIZED), sd=sd(.data$MEASUREMENT_VALUE_HARMONIZED)),
     paste0(out_file_prefix, "_labs_by_time_to_drug.txt"), sep="\t", row.names=FALSE, quote=FALSE)
      
 
-  plot(ggplot(responses) + geom_histogram(aes(x=response)) + theme_bw() +
+  plot(ggplot(responses) + geom_histogram(aes(x=.data$response)) + theme_bw() +
       labs(x="Response (after - before)", y="Count") + 
       ggtitle("Distribution of drug response"))
     
@@ -139,7 +142,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
   r2 <- format(fit$r.squared, digits=2)
   p <- format(fit$coefficients["before","Pr(>|t|)"], digits=2, scientific=TRUE)
   
-  suppressWarnings(print(ggplot(responses, aes(x=before, y=after)) + geom_point() + geom_smooth(method="lm") +
+  suppressWarnings(print(ggplot(responses, aes(x=.data$before, y=.data$after)) + geom_point() + geom_smooth(method="lm") +
       geom_abline(slope=1) + 
       ggtitle(paste0("Before vs. after values. Slope: ", slope, " R2: ", r2, " p: ", p))))
   
@@ -160,20 +163,20 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
 generate_response_summary <- function(lab_measurements, before_period, after_period, summary_function=median) {
   
   lab_measurements <- lab_measurements %>% mutate(lab_period = case_when(
-    between(time_to_drug, after_period[1], after_period[2]) ~ 'Before',
-    between(time_to_drug, before_period[1], before_period[2]) ~ 'After',
+    dplyr::between(.data$time_to_drug, after_period[1], after_period[2]) ~ 'Before',
+    dplyr::between(.data$time_to_drug, before_period[1], before_period[2]) ~ 'After',
     TRUE ~ NA_character_
   ))
   
-  lab_response <- lab_measurements %>% filter(!is.na(lab_period) & !is.na(MEASUREMENT_VALUE_HARMONIZED)) %>%
-    group_by(FINNGENID) %>%
-    summarize(before = summary_function(MEASUREMENT_VALUE_HARMONIZED[lab_period=='Before'], na.rm=TRUE),
-              after = summary_function(MEASUREMENT_VALUE_HARMONIZED[lab_period=='After'], na.rm=TRUE),
-              n_before = length(MEASUREMENT_VALUE_HARMONIZED[lab_period=='Before']),
-              n_after = length(MEASUREMENT_VALUE_HARMONIZED[lab_period=='After']),
-              baseline_age = first(first_drug_age),
-              first_drug = first(first_drug),
-              response = after - before) %>% filter(!is.na(response))
+  lab_response <- lab_measurements %>% dplyr::filter(!is.na(.data$lab_period) & !is.na(.data$MEASUREMENT_VALUE_HARMONIZED)) %>%
+    dplyr::group_by(.data$FINNGENID) %>%
+    dplyr::summarize(before = summary_function(.data$MEASUREMENT_VALUE_HARMONIZED[.data$lab_period=='Before'], na.rm=TRUE),
+              after = summary_function(.data$MEASUREMENT_VALUE_HARMONIZED[.data$lab_period=='After'], na.rm=TRUE),
+              n_before = length(.data$MEASUREMENT_VALUE_HARMONIZED[.data$lab_period=='Before']),
+              n_after = length(.data$MEASUREMENT_VALUE_HARMONIZED[.data$lab_period=='After']),
+              baseline_age = first(.data$first_drug_age),
+              first_drug = first(.data$first_drug),
+              response = .data$after - .data$before) %>% dplyr::filter(!is.na(.data$response))
   
   return(lab_response)
 }
@@ -192,13 +195,13 @@ get_lab_measurements <- function(all_labs, lablist, require_values=TRUE, return_
   
   return_cols <- unique(c("OMOP_CONCEPT_ID", return_cols))
   
-  labs <- all_labs %>% select(all_of(return_cols)) %>% filter(OMOP_CONCEPT_ID %in% lablist)
+  labs <- all_labs %>% select(all_of(return_cols)) %>% dplyr::filter(.data$OMOP_CONCEPT_ID %in% lablist)
   
   if (!is.null(finngen_ids)) {
-    labs <- labs %>% filter(FINNGENID %in% finngen_ids)
+    labs <- labs %>% dplyr::filter(.data$FINNGENID %in% finngen_ids)
   }
   if (require_values) {
-    labs <- labs %>% filter(!is.na(MEASUREMENT_VALUE_HARMONIZED))
+    labs <- labs %>% dplyr::filter(!is.na(.data$MEASUREMENT_VALUE_HARMONIZED))
   }
   
   ifelse(lazy, return(labs), return(dplyr::collect(labs)))
@@ -217,14 +220,14 @@ get_drug_purchases <- function(all_phenos, druglist, finngen_ids=NULL,
                                return_cols=c("FINNGENID","EVENT_AGE", ATC="CODE1", REIMB_CODE="CODE2", VNR="CODE3", N_PACKS="CODE4"),
                                lazy=FALSE) {
   
-  drugs_regex <- druglist %>% 
-    stringr::str_c(collapse = '|') %>% 
-    stringr::str_c('^(', ., ')')
+  drugs_regex <- paste0("^(",
+                        paste0(druglist, collapse = '|'),
+                      ")")
   
-  drugs <- all_phenos %>% filter(SOURCE=="PURCH" & str_detect(CODE1, drugs_regex)) %>% select(all_of(return_cols))
+  drugs <- all_phenos %>% dplyr::filter(.data$SOURCE=="PURCH" & str_detect(.data$CODE1, drugs_regex)) %>% select(all_of(return_cols))
   
   if (!is.null(finngen_ids)) {
-    drugs <- drugs %>% filter(FINNGENID %in% finngen_ids)
+    drugs <- drugs %>% dplyr::filter(.data$FINNGENID %in% finngen_ids)
   }
   
   ifelse(lazy, return(drugs), return(dplyr::collect(drugs)))
@@ -243,8 +246,8 @@ get_first_purchase <- function(all_phenos, druglist, finngen_ids=NULL, return_co
                                lazy=FALSE) {
   
   first_purch <- get_drug_purchases(all_phenos, druglist, finngen_ids, return_cols, lazy=TRUE) %>% 
-    group_by(FINNGENID) %>%
-    filter(EVENT_AGE == min(EVENT_AGE)) %>% distinct(EVENT_AGE, .keep_all = TRUE) %>%
+    group_by(.data$FINNGENID) %>%
+    filter(.data$EVENT_AGE == min(.data$EVENT_AGE)) %>% distinct(.data$EVENT_AGE, .keep_all = TRUE) %>%
     ungroup() %>% 
     select(all_of(return_cols))
 }
