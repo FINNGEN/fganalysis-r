@@ -1,7 +1,5 @@
-
 #' @import DBI
 #NULL
-
 get_bigquery_dbplyr <- function(projectid,dataset, table) {
    con <- dbConnect(
     bigrquery::bigquery(),
@@ -21,7 +19,8 @@ get_duckdb_dbplyr <- function(duckdb_file, table) {
   return(tbl(conn, table))
 }
 
-fg.data.connection <- function(connections) {
+
+fg_data_connection <- function(connections) {
     if (!is.list(connections)) {
         stop("Connections must be a list")
     }
@@ -29,16 +28,21 @@ fg.data.connection <- function(connections) {
         stop("Connections list must contain 'pheno' and 'labs'")
     }
     ## do further checks on the connections as needed. 
-    class(connections) <- "fg.data.connection"
-    return(connections) 
+    class(connections) <- "fg_data_connection"
+    return(connections)
 }
 
-print.fg.data.connection <- function(x, ...) {
+#' @export
+print.fg_data_connection <- function(x,...) {
     cat("FinnGen data connection object\n")
-    cat("Phenotype data:\n")
-    print(str(x$pheno))
-    cat("\nLab data:\n")
-    print(str(x$labs))
+    cat("Contains lazy loaded data frames of FinnGen phenotype data e.g.:\n")
+    cat("pheno : longitudinal service sector data\n")
+    cat("labs: kanta lab values\n")
+    cat("minimum: minimum phenotypes\n")
+    cat("cov_pheno: covariate phenotypes\n")
+    cat("Connections are lazy loaded, use dplyr verbs to load data and use function collect() to localize results \n")
+    cat("All atrributes of the class:\n")
+    print(attributes(x))
 }
 
 call_connect <- function(conf) {
@@ -77,7 +81,7 @@ connect_fgdata <-  function(path_to_conf) {
         connections[[conf]] <- call_connect(json_data[[conf]])
     }
 
-    return(fg.data.connection( connections))
+    return(fg_data_connection( connections))
 }
 
 
