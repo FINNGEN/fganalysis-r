@@ -1,4 +1,4 @@
-laitetaan kordissimi# fganalysis R Package
+# fganalysis R Package
 
 ## Overview
 
