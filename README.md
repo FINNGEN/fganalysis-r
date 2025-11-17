@@ -195,7 +195,7 @@ nrow(ibd)
 labs <- get_lab_measurements(conn$labs, c("3007461"))
 
 ## Get all drug purchases with ATC codes starting with L01B
-dr <- get_drug_purchases(conn$pheno, c("L01B"))
+dr <- get_drug_purchases(conn, c("L01B"))
 
 # Create drug response data of lab changes after initiating a drug.
 ## First define time intervals from drug purchase to summarise lab values
