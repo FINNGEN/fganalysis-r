@@ -195,7 +195,7 @@ plot_lab_value_distribution <- function(drug_response, remove_outliers = FALSE) 
   # after_period uses positive values (e.g., c(0.1, 1))
   # We need to flip the signs when matching
   lab_data_periods <- drug_response$all_measurements %>%
-    filter(!is.na(.data$first_drug_age) & !is.na(.data$MEASUREMENT_VALUE_HARMONIZED)) %>%
+    filter(!is.na(.data$first_drug_age) & !is.na(.data$VALUE)) %>%
     mutate(period = case_when(
       between(.data$time_to_drug, -before_period_def[2], -before_period_def[1]) ~ "Before",
       between(.data$time_to_drug, -after_period_def[2], -after_period_def[1]) ~ "After",
@@ -208,13 +208,13 @@ plot_lab_value_distribution <- function(drug_response, remove_outliers = FALSE) 
     plot_data <- plot_data %>%
       group_by(.data$first_drug, .data$period) %>%
       mutate(
-        Q1 = quantile(.data$MEASUREMENT_VALUE_HARMONIZED, 0.25, na.rm = TRUE),
-        Q3 = quantile(.data$MEASUREMENT_VALUE_HARMONIZED, 0.75, na.rm = TRUE),
+        Q1 = quantile(.data$VALUE, 0.25, na.rm = TRUE),
+        Q3 = quantile(.data$VALUE, 0.75, na.rm = TRUE),
         IQR = .data$Q3 - .data$Q1
       ) %>%
       filter(
-        .data$MEASUREMENT_VALUE_HARMONIZED >= (.data$Q1 - 1.5 * .data$IQR) &
-        .data$MEASUREMENT_VALUE_HARMONIZED <= (.data$Q3 + 1.5 * .data$IQR)
+        .data$VALUE >= (.data$Q1 - 1.5 * .data$IQR) &
+        .data$VALUE <= (.data$Q3 + 1.5 * .data$IQR)
       ) %>%
       ungroup()
   }
@@ -225,7 +225,7 @@ plot_lab_value_distribution <- function(drug_response, remove_outliers = FALSE) 
 
   # Generate violin plot with ggpubr
   p <- ggpubr::ggviolin(plot_data,
-                        x = "period", y = "MEASUREMENT_VALUE_HARMONIZED",
+                        x = "period", y = "VALUE",
                         fill = "period",
                         palette = c("#00AFBB", "#E7B800"),
                         add = "boxplot",
