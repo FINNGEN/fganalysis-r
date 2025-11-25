@@ -679,6 +679,7 @@ When adding new functionality, please add corresponding unit tests in the `tests
 
 - **Mitja Kurki, PhD** (Author, Creator) - <mkurki@broadinstitute.org>
 - **Reza Jaba, PhD** (Contributor) - <rjabal@broadinstitute.org>
+- **Arto Lehisto, MSc** (Contributor) - <arto.lehisto@helsinki.fi>
 
 ## License
 
