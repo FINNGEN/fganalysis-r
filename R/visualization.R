@@ -266,7 +266,9 @@ summarize_drug_purchases_upset <- function(drug_response, out_file_prefix) {
     tidyr::pivot_wider(names_from = "ATC", values_from = "value", values_fill = 0) %>%
     select(-"FINNGENID") %>%
     as.data.frame()
-
+  if(ncol(upset_data)<2){
+    stop("Drug response must contain at least 2 drugs to create UpSet plots.")
+  }
   pdf(paste0(out_file_prefix, "_upset_plot.pdf"), width = 10, height = 7)
 
   UpSetR::upset(upset_data,
