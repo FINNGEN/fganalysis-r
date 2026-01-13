@@ -111,7 +111,7 @@ The main data tables are:
 - **`cov_pheno`**: Covariate phenotype data.
 - **`endpoint`**: Endpoint data in long format.
 - **`vnr`**: VNR (VNR nordic drug article numbering, https://wiki.vnr.fi/?page_id=36 )data.
-- **`long_anthropometric`**: Longitudinal anthropometric measurements which is weight, height, blood pressure, smoking and alcohol audits. collected during primary care visits. (gs://finngen-production-library-red/finngen_R13/hilmo_avohilmo_extended_1.0/finngen_R13_hilmo_avohilmo_extended_readme_1.0.txt)
+- **`long_anthropometric`**: Longitudinal anthropometric measurements which is weight, height, blood pressure, smoking and alcohol audits. collected during hospital and primary care visits. (gs://finngen-production-library-red/finngen_R13/hilmo_avohilmo_extended_1.0/finngen_R13_hilmo_avohilmo_extended_readme_1.0.txt).
 
 ### Local Configuration
 
