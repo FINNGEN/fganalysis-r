@@ -110,7 +110,7 @@ The main data tables are:
 - **`minimum`**: Minimum phenotype data for individuals.
 - **`cov_pheno`**: Covariate phenotype data.
 - **`endpoint`**: Endpoint data in long format.
-- **`vnr`**: VNR (Väestörekisterikeskus) data.
+- **`vnr`**: VNR (VNR nordic drug article numbering, https://wiki.vnr.fi/?page_id=36 )data.
 - **`long_anthropometric`**: Longitudinal anthropometric measurements.
 
 ### Local Configuration
