@@ -122,7 +122,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
     for(i in 1:nrow(drug_mapping)){
         drug_code <- drug_mapping$first_drug[i]
         drug_label <- drug_mapping$drug_label[i]
-        labs_sub <- labs %>% filter(!is.na(.data$bin))  
+        labs_sub <- labs %>% filter(!is.na(.data$bin) & .data$first_drug == drug_code)  
         p <- ggplot(labs_sub)  + geom_boxplot(aes(x = .data$bin, y = .data$VALUE)) +
         labs(x = "Time to drug purchase (years)", y = "Lab measurement") +
         ggtitle(paste("Lab measurements before and after drug purchase for", drug_label)) + theme_bw() +
