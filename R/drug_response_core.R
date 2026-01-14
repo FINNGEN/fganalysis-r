@@ -44,6 +44,7 @@ drug.response <- function(responses, lab_measurements,
 #' @param filter_min_max A numeric vector of length 2 defining min and max lab values to include (default: c(-Inf, Inf))
 #' @param use_lab_free_text_values Logical, if False, Dont include lab measurements from free text value column (default: TRUE)
 #' @param use_only_reimbursement_drugs Logical, if TRUE, use only reimbursement data (default FALSE) and do not include delivery data from KANTA
+#' @param use_atc_mapping Logical, if TRUE, expand ATC codes to include historical alterations (default TRUE)
 #' @param finngen_ids Optional character vector of FINNGENIDs to restrict analysis
 #' @param remove_outliers_sd Optional numeric value (1-6) to remove outliers based on standard deviations
 #' @return drug.response object
@@ -51,6 +52,7 @@ drug.response <- function(responses, lab_measurements,
 create_drug_response <- function(conn, lablist, druglist,
                                  before_period, after_period, summary_function=median, filter_min_max = c(-Inf, Inf),
                                  use_lab_free_text_values = TRUE, use_only_reimbursement_drugs = FALSE,
+                                 use_atc_mapping = TRUE,
                                  finngen_ids = NULL, remove_outliers_sd = NULL) {
     # Validate all input parameters immediately
     if (!inherits(conn, "fg_data_connection")) {
@@ -66,7 +68,7 @@ create_drug_response <- function(conn, lablist, druglist,
     assertLogical(use_only_reimbursement_drugs)
     assertNumeric(remove_outliers_sd, null.ok = TRUE, len = 1, lower=1, upper=6)
     assertCharacter(finngen_ids, null.ok = TRUE, any.missing = FALSE)
-    
+
     # Extract data from connection object
     kanta <- conn$labs
     phenos <- conn$pheno
@@ -101,13 +103,14 @@ create_drug_response <- function(conn, lablist, druglist,
     all_fg_ids <- unique(c(lab_measurements$FINNGENID, finngen_ids))
     print("Querying purchases...")
     drug_purchases <- get_drug_purchases(conn, druglist, all_fg_ids,
-        use_only_reimbursement = use_only_reimbursement_drugs)
+        use_only_reimbursement = use_only_reimbursement_drugs,
+        use_atc_mapping = use_atc_mapping)
 
     # get_drug_purchases returns ATC column by default (renamed from CODE1)
     dr_first_purchase <- drug_purchases %>%
         group_by(.data$FINNGENID) %>%
         arrange(.data$EVENT_AGE) %>%
-        dplyr::summarize(n = n(), first_drug_age = first(.data$EVENT_AGE), 
+        dplyr::summarize(n = n(), first_drug_age = first(.data$EVENT_AGE),
         first_drug = first(.data$ATC), first_drug_date = first(.data$APPROX_EVENT_DAY))
     print(paste0("Number of drug purchases: ", nrow(drug_purchases)))
     lab_measurements <- dplyr::left_join(lab_measurements, dr_first_purchase, by = "FINNGENID")
@@ -115,7 +118,7 @@ create_drug_response <- function(conn, lablist, druglist,
 
     print("generating response summary...")
 
-    lab_response <- generate_response_summary(lab_measurements, before_period, 
+    lab_response <- generate_response_summary(lab_measurements, before_period,
     after_period, summary_function=summary_function)
     cat(paste0("Number of individuals with response data: ", nrow(lab_response %>% filter(!is.na(.data$response)))))
 
@@ -181,6 +184,7 @@ generate_response_summary <- function(lab_measurements, before_period, after_per
 #' purchase to include lab measurements. Defaults to 3.
 #' @param use_freetext_values Logical, if False, do not include lab measurements from free text value column (default: TRUE).
 #' @param use_only_reimbursement Logical, if TRUE, use only reimbursement data (default FALSE) and do not include delivery data from KANTA.
+#' @param use_atc_mapping Logical, if TRUE, expand ATC codes to include historical alterations (default TRUE)
 #' @param remove_outliers_sd An optional numeric value specifying the number of standard deviations
 #' to use for outlier removal. Values outside `mean ± sd * remove_outliers_sd` will be removed.
 #' @param winsorize_pct An optional numeric value between 0 and 0.5 for Winsorizing the lab values.
@@ -198,6 +202,7 @@ generate_response_summary <- function(lab_measurements, before_period, after_per
 #' @export
 get_measurements_before_drug <- function(conn, lablist, druglist, months_before, use_freetext_values = TRUE,
                                          use_only_reimbursement = FALSE,
+                                         use_atc_mapping = TRUE,
                                          remove_outliers_sd = NULL, winsorize_pct = NULL,
                                          range_sd_filter = NULL) {
     if (!is.null(remove_outliers_sd) && !is.null(winsorize_pct)) {
@@ -210,7 +215,9 @@ get_measurements_before_drug <- function(conn, lablist, druglist, months_before,
     # 1. Get all relevant lab measurements and drug purchases
     lab_measurements <- get_lab_measurements(conn$labs, lablist, require_values = TRUE, use_freetext_values = use_freetext_values)
 
-    first_purchases <- get_first_purchase(conn, druglist, use_only_reimbursement = use_only_reimbursement) %>%
+    first_purchases <- get_first_purchase(conn, druglist,
+                                         use_only_reimbursement = use_only_reimbursement,
+                                         use_atc_mapping = use_atc_mapping) %>%
         select(FINNGENID, first_drug_age = EVENT_AGE)
 
     # 2. Join lab data with first purchase data
@@ -291,12 +298,14 @@ get_measurements_before_drug <- function(conn, lablist, druglist, months_before,
 #' @param druglist A character vector of ATC drug codes.
 #' @param months_before The time window in months before the first drug purchase (default: 1).
 #' @param remove_outliers_mad_th The threshold for MAD-based outlier removal (default: 5).
+#' @param use_atc_mapping Logical, if TRUE, expand ATC codes to include historical alterations (default TRUE)
 #' @param output_dir The directory to save outputs (default: `"."`).
 #' @param output_file_prefix A prefix for output file names.
 #' @return A data frame with median lab values per individual, ready for GWAS analysis.
 #' @export
 get_median_pre_drug <- function(conn, lablist, druglist, months_before = 1,
                                 remove_outliers_mad_th = 5,
+                                use_atc_mapping = TRUE,
                                 output_dir = ".",
                                 output_file_prefix = "") {
     # 1. Get measurements before drug purchase
@@ -304,7 +313,8 @@ get_median_pre_drug <- function(conn, lablist, druglist, months_before = 1,
         conn = conn,
         lablist = lablist,
         druglist = druglist,
-        months_before = months_before
+        months_before = months_before,
+        use_atc_mapping = use_atc_mapping
     )
 
     # 2. MAD outlier removal

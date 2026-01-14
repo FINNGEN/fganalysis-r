@@ -58,14 +58,15 @@ get_lab_measurements <- function(all_labs, lablist, require_values=TRUE,
 #' @param druglist vector of drug ATC codes. The ATC codes are matched with the first part of the code (e.g. A01*)
 #' @param finngen_ids vector of FINNGENIDs to filter the data. leave empty to get all
 #' @param use_only_reimbursement logical, if TRUE, use only reimbursement data (default FALSE) and combine reimbursement and delivery data if available in conn
+#' @param use_atc_mapping logical, if TRUE, expand ATC codes to include historical alterations (default TRUE)
 #' @param lazy logical, if TRUE, return a lazy tbl object
 #' @return data frame with drug purchases
 #' @export
 #' @importFrom dplyr %>% filter select collect rename
 #' @importFrom rlang sym :=
 #' @import stringr
-get_drug_purchases <- function(conn, druglist, finngen_ids=NULL,use_only_reimbursement = FALSE,
-                               lazy=FALSE) {
+get_drug_purchases <- function(conn, druglist, finngen_ids=NULL, use_only_reimbursement = FALSE,
+                               use_atc_mapping = TRUE, lazy=FALSE) {
 
     ## check that conn is a fg_data_connection object and has pheno data name
     if (!inherits(conn, "fg_data_connection")) {
@@ -76,8 +77,17 @@ get_drug_purchases <- function(conn, druglist, finngen_ids=NULL,use_only_reimbur
         stop("conn must contain 'pheno' data")
     }
 
+    # Expand ATC codes if mapping is enabled
+    if (use_atc_mapping) {
+        # Require mapping file when use_atc_mapping is explicitly TRUE
+        expanded_druglist <- expand_atc_codes(druglist, include_hierarchical = FALSE, verbose = TRUE, require_mapping = TRUE)
+    } else {
+        expanded_druglist <- druglist
+        message("ATC mapping disabled - using original ATC codes only")
+    }
+
     drugs_regex <- paste0("^(",
-                        paste0(druglist, collapse = '|'),
+                        paste0(expanded_druglist, collapse = '|'),
                         ")")
 
 
@@ -85,8 +95,8 @@ get_drug_purchases <- function(conn, druglist, finngen_ids=NULL,use_only_reimbur
 
     if ("drug_events" %in% names(conn) & !use_only_reimbursement) {
         print("Using drug data combining reimbursement and delivery data.")
-        drugs <- conn$drug_events %>% 
-                dplyr::filter( str_detect( .data$ATC, drugs_regex ) ) 
+        drugs <- conn$drug_events %>%
+                dplyr::filter( str_detect( .data$ATC, drugs_regex ) )
     } else {
         print("Using drug data from reimbursement data only! i.e. longitudinal data from purchase registry.")
         return_cols <- c("FINNGENID", "EVENT_AGE", "APPROX_EVENT_DAY", ATC = "CODE1", REIMB_CODE = "CODE2", VNR = "CODE3", N_PACKS = "CODE4")
@@ -119,15 +129,19 @@ get_drug_purchases <- function(conn, druglist, finngen_ids=NULL,use_only_reimbur
 #' @param druglist vector of drug ATC codes. The ATC codes are matched with the first part of the code (e.g. A01*)
 #' @param finngen_ids vector of FINNGENIDs to filter the data. leave empty to get all
 #' @param use_only_reimbursement logical, if TRUE, use only reimbursement data (default FALSE) and combine reimbursement and delivery data if available in conn
+#' @param use_atc_mapping logical, if TRUE, expand ATC codes to include historical alterations (default TRUE)
 #' @param lazy logical, if TRUE, return a lazy tbl object
 #' @return data frame with first drug purchases for each FINNGENID
 #' @export
 #' @importFrom dplyr %>% group_by filter distinct ungroup select collect
 get_first_purchase <- function(conn, druglist, finngen_ids=NULL,
                                 use_only_reimbursement = FALSE,
+                                use_atc_mapping = TRUE,
                                lazy=FALSE) {
 
-  first_purch <- get_drug_purchases(conn, druglist, finngen_ids, lazy=TRUE, use_only_reimbursement = use_only_reimbursement) %>%
+  first_purch <- get_drug_purchases(conn, druglist, finngen_ids, lazy=TRUE,
+                                   use_only_reimbursement = use_only_reimbursement,
+                                   use_atc_mapping = use_atc_mapping) %>%
     group_by(.data$FINNGENID) %>%
     filter(.data$EVENT_AGE == min(.data$EVENT_AGE)) %>% distinct(.data$EVENT_AGE, .keep_all = TRUE) %>%
     ungroup()

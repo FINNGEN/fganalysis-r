@@ -1,0 +1,200 @@
+{
+  "version": "1.0.0",
+  "generated_date": "2024-01-15",
+  "source_url": "https://atcddd.fhi.no/atc_ddd_alterations__cumulative/atc_alterations/",
+  "total_mappings": 24,
+  "mappings": {
+    "A10BJ05": {
+      "original": "A10BJ05",
+      "current": "A10BJ05",
+      "historical": ["A10BX07"],
+      "related": [],
+      "years": ["2015"],
+      "description": "dulaglutide"
+    },
+    "A10BX07": {
+      "original": "A10BX07",
+      "current": "A10BJ05",
+      "historical": [],
+      "related": ["A10BJ05"],
+      "years": ["2015"],
+      "description": "dulaglutide (old classification)"
+    },
+    "A10BJ06": {
+      "original": "A10BJ06",
+      "current": "A10BJ06",
+      "historical": ["A10BX14"],
+      "related": [],
+      "years": ["2018"],
+      "description": "semaglutide"
+    },
+    "A10BX14": {
+      "original": "A10BX14",
+      "current": "A10BJ06",
+      "historical": [],
+      "related": ["A10BJ06"],
+      "years": ["2018"],
+      "description": "semaglutide (old classification)"
+    },
+    "A10BK03": {
+      "original": "A10BK03",
+      "current": "A10BK03",
+      "historical": ["A10BX12"],
+      "related": [],
+      "years": ["2014"],
+      "description": "empagliflozin"
+    },
+    "A10BX12": {
+      "original": "A10BX12",
+      "current": "A10BK03",
+      "historical": [],
+      "related": ["A10BK03"],
+      "years": ["2014"],
+      "description": "empagliflozin (old classification)"
+    },
+    "A10BJ04": {
+      "original": "A10BJ04",
+      "current": "A10BJ04",
+      "historical": ["A10BX10"],
+      "related": [],
+      "years": ["2012"],
+      "description": "lixisenatide"
+    },
+    "A10BX10": {
+      "original": "A10BX10",
+      "current": "A10BJ04",
+      "historical": [],
+      "related": ["A10BJ04"],
+      "years": ["2012"],
+      "description": "lixisenatide (old classification)"
+    },
+    "C10AA07": {
+      "original": "C10AA07",
+      "current": "C10AA07",
+      "historical": ["C10AX06"],
+      "related": [],
+      "years": ["2003"],
+      "description": "rosuvastatin"
+    },
+    "C10AX06": {
+      "original": "C10AX06",
+      "current": "C10AA07",
+      "historical": [],
+      "related": ["C10AA07"],
+      "years": ["2003"],
+      "description": "rosuvastatin (old classification)"
+    },
+    "L04AB04": {
+      "original": "L04AB04",
+      "current": "L04AB04",
+      "historical": ["L04AA24"],
+      "related": [],
+      "years": ["2003"],
+      "description": "adalimumab"
+    },
+    "L04AA24": {
+      "original": "L04AA24",
+      "current": "L04AB04",
+      "historical": [],
+      "related": ["L04AB04"],
+      "years": ["2003"],
+      "description": "adalimumab (old classification)"
+    },
+    "N06AX21": {
+      "original": "N06AX21",
+      "current": "N06AX21",
+      "historical": ["N06AX12"],
+      "related": [],
+      "years": ["2001"],
+      "description": "duloxetine"
+    },
+    "N06AX12": {
+      "original": "N06AX12",
+      "current": "N06AX21",
+      "historical": [],
+      "related": ["N06AX21"],
+      "years": ["2001"],
+      "description": "duloxetine (old classification)"
+    },
+    "B01AC24": {
+      "original": "B01AC24",
+      "current": "B01AC24",
+      "historical": ["B01AC04"],
+      "related": [],
+      "years": ["2010"],
+      "description": "ticagrelor"
+    },
+    "B01AC04": {
+      "original": "B01AC04",
+      "current": "B01AC24",
+      "historical": [],
+      "related": ["B01AC24"],
+      "years": ["2010"],
+      "description": "ticagrelor (old classification - was clopidogrel code)"
+    },
+    "C09DX04": {
+      "original": "C09DX04",
+      "current": "C09DX04",
+      "historical": ["C09XA54"],
+      "related": [],
+      "years": ["2016"],
+      "description": "valsartan and sacubitril"
+    },
+    "C09XA54": {
+      "original": "C09XA54",
+      "current": "C09DX04",
+      "historical": [],
+      "related": ["C09DX04"],
+      "years": ["2016"],
+      "description": "valsartan and sacubitril (old classification)"
+    },
+    "L01XE07": {
+      "original": "L01XE07",
+      "current": "L01EX07",
+      "historical": [],
+      "related": ["L01EX07"],
+      "years": ["2018"],
+      "description": "lapatinib (reclassified)"
+    },
+    "L01EX07": {
+      "original": "L01EX07",
+      "current": "L01EX07",
+      "historical": ["L01XE07"],
+      "related": [],
+      "years": ["2018"],
+      "description": "lapatinib"
+    },
+    "A02BC05": {
+      "original": "A02BC05",
+      "current": "A02BC05",
+      "historical": ["A02BC01"],
+      "related": [],
+      "years": ["2000"],
+      "description": "esomeprazole"
+    },
+    "A02BC01": {
+      "original": "A02BC01",
+      "current": "A02BC05",
+      "historical": [],
+      "related": ["A02BC05"],
+      "years": ["2000"],
+      "description": "esomeprazole (old classification - was omeprazole code)"
+    },
+    "J07AL02": {
+      "original": "J07AL02",
+      "current": "J07AL02",
+      "historical": ["J07AL01"],
+      "related": [],
+      "years": ["2006"],
+      "description": "pneumococcus, conjugated vaccine"
+    },
+    "J07AL01": {
+      "original": "J07AL01",
+      "current": "J07AL02",
+      "historical": [],
+      "related": ["J07AL02"],
+      "years": ["2006"],
+      "description": "pneumococcus vaccine (old classification)"
+    }
+  }
+}

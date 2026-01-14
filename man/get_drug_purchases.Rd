@@ -9,6 +9,7 @@ get_drug_purchases(
   druglist,
   finngen_ids = NULL,
   use_only_reimbursement = FALSE,
+  use_atc_mapping = TRUE,
   lazy = FALSE
 )
 }
@@ -20,6 +21,8 @@ get_drug_purchases(
 \item{finngen_ids}{vector of FINNGENIDs to filter the data. leave empty to get all}
 
 \item{use_only_reimbursement}{logical, if TRUE, use only reimbursement data (default FALSE) and combine reimbursement and delivery data if available in conn}
+
+\item{use_atc_mapping}{logical, if TRUE, expand ATC codes to include historical alterations (default TRUE)}
 
 \item{lazy}{logical, if TRUE, return a lazy tbl object}
 }

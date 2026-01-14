@@ -11,6 +11,7 @@ get_measurements_before_drug(
   months_before,
   use_freetext_values = TRUE,
   use_only_reimbursement = FALSE,
+  use_atc_mapping = TRUE,
   remove_outliers_sd = NULL,
   winsorize_pct = NULL,
   range_sd_filter = NULL
@@ -29,6 +30,8 @@ purchase to include lab measurements. Defaults to 3.}
 \item{use_freetext_values}{Logical, if False, do not include lab measurements from free text value column (default: TRUE).}
 
 \item{use_only_reimbursement}{Logical, if TRUE, use only reimbursement data (default FALSE) and do not include delivery data from KANTA.}
+
+\item{use_atc_mapping}{Logical, if TRUE, expand ATC codes to include historical alterations (default TRUE)}
 
 \item{remove_outliers_sd}{An optional numeric value specifying the number of standard deviations
 to use for outlier removal. Values outside `mean ± sd * remove_outliers_sd` will be removed.}

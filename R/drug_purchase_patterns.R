@@ -1,8 +1,12 @@
 #' @import foreach
 #' @import doParallel
 #' @importFrom parallel detectCores makeCluster stopCluster
+NULL
 
-#' @title Function to compute purchase frequencies for all VNRs in parallel. 
+# Declare global variables to avoid R CMD check notes
+utils::globalVariables(c("vnr"))
+
+#' @title Function to compute purchase frequencies for all VNRs in parallel.
 #' @description Calls compute_purchase_frequency for each VNR, check that function for details of computation
 #' @param data data.frame of purchases for multiple VNRs as returned by get_drug_purchases
 #' @param gap maximum permissible gap between purchases to consider them part of the same treatment interval
@@ -48,8 +52,8 @@ parallel_compute_purchase_frequencies_for_VNRs <- function(data, gap, use_pills_
 
 #' @title Function to compute purchase frequency
 #' @description For a given set of purchases for a single VNR, compute the intervals between purchases for each individual. Purchases are considered part of the same treatment interval if they are within max(PackageSize, DDDPerPack) + gap days of each other.
-#' @param purchases data.frame of purchases for a single VNR as returned by get_drug_purchases. 
-#' if use_pills_per_pack_only Uses max(PackageSize, DDDPerPack) + gap else use packageSize + gap to determine which adjacent purchases are considered part of the same treatment interval 
+#' @param purchases data.frame of purchases for a single VNR as returned by get_drug_purchases.
+#' if use_pills_per_pack_only Uses max(PackageSize, DDDPerPack) + gap else use packageSize + gap to determine which adjacent purchases are considered part of the same treatment interval
 #' @param gap maximum permissible gap between purchases
 #' @param use_pills_per_pack_only logical, whether to use only PackageSize + gap to determine treatment intervals default TRUE
 #' @return data.frame of purchase intervals
@@ -57,11 +61,11 @@ parallel_compute_purchase_frequencies_for_VNRs <- function(data, gap, use_pills_
 compute_purchase_frequency <- function(purchases, gap=30, use_pills_per_pack_only=TRUE){
     purchases <- purchases %>% arrange(.data$FINNGENID, .data$APPROX_EVENT_DAY)
     intervals <- list()
-    for(i in 2:nrow(purchases) ){ 
+    for(i in 2:nrow(purchases) ){
         row <- purchases[i,]
         allowed_gap <- if(!use_pills_per_pack_only) max(row$PackageSize, row$DDDPerPack,na.rm=TRUE) + gap else row$PackageSize + gap
         if(row$FINNGENID == purchases[i-1,]$FINNGENID & row$APPROX_EVENT_DAY - purchases[i-1,]$APPROX_EVENT_DAY <= allowed_gap){
-            intervals[[length(intervals)+1]] <- data.frame(VNR=row$VNR, ATC=row$ATC, medicine=row$Substance, FINNGENID=row$FINNGENID, 
+            intervals[[length(intervals)+1]] <- data.frame(VNR=row$VNR, ATC=row$ATC, medicine=row$Substance, FINNGENID=row$FINNGENID,
             cadence= as.numeric(row$APPROX_EVENT_DAY - purchases[i-1,]$APPROX_EVENT_DAY))
         }
     }

@@ -10,6 +10,7 @@ get_median_pre_drug(
   druglist,
   months_before = 1,
   remove_outliers_mad_th = 5,
+  use_atc_mapping = TRUE,
   output_dir = ".",
   output_file_prefix = ""
 )
@@ -24,6 +25,8 @@ get_median_pre_drug(
 \item{months_before}{The time window in months before the first drug purchase (default: 1).}
 
 \item{remove_outliers_mad_th}{The threshold for MAD-based outlier removal (default: 5).}
+
+\item{use_atc_mapping}{Logical, if TRUE, expand ATC codes to include historical alterations (default TRUE)}
 
 \item{output_dir}{The directory to save outputs (default: `"."`).}
 

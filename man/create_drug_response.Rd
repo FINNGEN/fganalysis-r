@@ -14,6 +14,7 @@ create_drug_response(
   filter_min_max = c(-Inf, Inf),
   use_lab_free_text_values = TRUE,
   use_only_reimbursement_drugs = FALSE,
+  use_atc_mapping = TRUE,
   finngen_ids = NULL,
   remove_outliers_sd = NULL
 )
@@ -36,6 +37,8 @@ create_drug_response(
 \item{use_lab_free_text_values}{Logical, if False, Dont include lab measurements from free text value column (default: TRUE)}
 
 \item{use_only_reimbursement_drugs}{Logical, if TRUE, use only reimbursement data (default FALSE) and do not include delivery data from KANTA}
+
+\item{use_atc_mapping}{Logical, if TRUE, expand ATC codes to include historical alterations (default TRUE)}
 
 \item{finngen_ids}{Optional character vector of FINNGENIDs to restrict analysis}
 

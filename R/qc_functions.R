@@ -7,7 +7,7 @@
 NULL
 
 # Declare global variables to avoid R CMD check notes
-utils::globalVariables(c("FINNGENID", "fixed_slope"))
+utils::globalVariables(c("FINNGENID", "fixed_slope", "VALUE", "time_diff", "cluster_id"))
 
 #' @title Inverse Rank Normalize Values
 #' @description Performs inverse rank normalization on a numeric vector
