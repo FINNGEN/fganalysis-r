@@ -9,6 +9,26 @@ NULL
 # Declare global variables to avoid R CMD check notes
 utils::globalVariables(c("FINNGENID", "EVENT_AGE", "first_drug_age", "time_to_drug"))
 
+#' @title Filter external lab measurements
+#' @description Internal helper function to filter external lab data
+#' @param external_labs Data frame with external lab measurements
+#' @param lablist Character vector of OMOP concept IDs to filter by
+#' @param finngen_ids Optional character vector of FINNGENIDs to filter by
+#' @return Filtered data frame
+#' @keywords internal
+filter_external_labs <- function(external_labs, lablist, finngen_ids = NULL) {
+    if (is.null(finngen_ids)) {
+        external_labs %>%
+            filter(.data$OMOP_CONCEPT_ID %in% lablist,
+                   !is.na(.data$VALUE))
+    } else {
+        external_labs %>%
+            filter(.data$OMOP_CONCEPT_ID %in% lablist,
+                   .data$FINNGENID %in% finngen_ids,
+                   !is.na(.data$VALUE))
+    }
+}
+
 #' @title Validate external lab measurements data frame
 #' @description Internal helper function to validate external lab data format
 #' @param external_labs Data frame with external lab measurements
@@ -98,17 +118,7 @@ create_drug_response <- function(conn, lablist, druglist,
     if (!is.null(external_labs)) {
         print("Using external lab measurements instead of Kanta lab values...")
         # Filter external labs to match lablist and finngen_ids
-        lab_measurements <- external_labs %>%
-            filter(.data$OMOP_CONCEPT_ID %in% lablist)
-        
-        if (!is.null(finngen_ids)) {
-            lab_measurements <- lab_measurements %>%
-                filter(.data$FINNGENID %in% finngen_ids)
-        }
-        
-        # Filter for non-missing values
-        lab_measurements <- lab_measurements %>%
-            filter(!is.na(.data$VALUE))
+        lab_measurements <- filter_external_labs(external_labs, lablist, finngen_ids)
     } else {
         lab_measurements <- get_lab_measurements(
             all_labs = conn$labs, lablist = lablist, finngen_ids = finngen_ids,
@@ -253,10 +263,10 @@ get_measurements_before_drug <- function(conn, lablist, druglist, months_before,
     # 1. Get all relevant lab measurements and drug purchases
     if (!is.null(external_labs)) {
         print("Using external lab measurements instead of Kanta lab values...")
-        # Filter external labs to match lablist
+        # Filter external labs to match lablist (finngen_ids not applicable here)
         lab_measurements <- external_labs %>%
-            filter(.data$OMOP_CONCEPT_ID %in% lablist) %>%
-            filter(!is.na(.data$VALUE))
+            filter(.data$OMOP_CONCEPT_ID %in% lablist,
+                   !is.na(.data$VALUE))
     } else {
         lab_measurements <- get_lab_measurements(conn$labs, lablist, require_values = TRUE, use_freetext_values = use_freetext_values)
     }
