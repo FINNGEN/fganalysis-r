@@ -15,6 +15,23 @@ quant_text <- function(vector) {
   paste0( paste(names(quantile(vector)), sep="\t"), ":", paste(quantile(vector),sep="\t"), collapse=" ")
 }
 
+#' Helper function to create drug labels combining ATC code with drug name
+#' @param data data frame containing first_drug column and optionally first_drug_name and first_drug_substance columns
+#' @return data frame with drug_label column added
+#' @noRd
+create_drug_labels <- function(data) {
+  if ("first_drug_name" %in% colnames(data) && "first_drug_substance" %in% colnames(data)) {
+    data %>% 
+      mutate(drug_label = ifelse(!is.na(.data$first_drug_name) & !is.na(.data$first_drug_substance),
+                                paste0(.data$first_drug, " (", .data$first_drug_substance, " - ", .data$first_drug_name, ")"),
+                                ifelse(!is.na(.data$first_drug_substance),
+                                      paste0(.data$first_drug, " (", .data$first_drug_substance, ")"),
+                                      .data$first_drug)))
+  } else {
+    data %>% mutate(drug_label = .data$first_drug)
+  }
+}
+
 
 #' @title Summarize drug response
 #' @description Summarize drug response data created with create_drug_response. writes plots and tables to disk
@@ -28,16 +45,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
     drugs <- drug_response$all_drug_purchases
 
     # Create drug label combining ATC code with drug name if available
-    if ("first_drug_name" %in% colnames(responses) && "first_drug_substance" %in% colnames(responses)) {
-        responses <- responses %>% 
-            mutate(drug_label = ifelse(!is.na(.data$first_drug_name) & !is.na(.data$first_drug_substance),
-                                      paste0(.data$first_drug, " (", .data$first_drug_substance, " - ", .data$first_drug_name, ")"),
-                                      ifelse(!is.na(.data$first_drug_substance),
-                                            paste0(.data$first_drug, " (", .data$first_drug_substance, ")"),
-                                            .data$first_drug)))
-    } else {
-        responses <- responses %>% mutate(drug_label = .data$first_drug)
-    }
+    responses <- create_drug_labels(responses)
 
     pdf(paste0(out_file_prefix, ".pdf"), width = 10, height = 6)
 
@@ -226,16 +234,7 @@ plot_lab_value_distribution <- function(drug_response, remove_outliers = FALSE) 
     filter(!is.na(.data$period))
 
   # Create drug label combining ATC code with drug name if available
-  if ("first_drug_name" %in% colnames(lab_data_periods) && "first_drug_substance" %in% colnames(lab_data_periods)) {
-    lab_data_periods <- lab_data_periods %>% 
-      mutate(drug_label = ifelse(!is.na(.data$first_drug_name) & !is.na(.data$first_drug_substance),
-                                paste0(.data$first_drug, " (", .data$first_drug_substance, " - ", .data$first_drug_name, ")"),
-                                ifelse(!is.na(.data$first_drug_substance),
-                                      paste0(.data$first_drug, " (", .data$first_drug_substance, ")"),
-                                      .data$first_drug)))
-  } else {
-    lab_data_periods <- lab_data_periods %>% mutate(drug_label = .data$first_drug)
-  }
+  lab_data_periods <- create_drug_labels(lab_data_periods)
 
   plot_data <- lab_data_periods
   if (remove_outliers) {
