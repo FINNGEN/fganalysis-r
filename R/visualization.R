@@ -102,7 +102,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
     uniq_drugs <- unique(responses$first_drug)
 
     for( drug in uniq_drugs){
-        labs_sub <- labs %>% filter(!is.na(.data$bin))  
+        labs_sub <- labs %>% filter(!is.na(.data$bin) & .data$first_drug == drug)  
         p <- ggplot(labs_sub)  + geom_boxplot(aes(x = .data$bin, y = .data$VALUE)) +
         labs(x = "Time to drug purchase (years)", y = "Lab measurement") +
         ggtitle(paste("Lab measurements before and after drug purchase for drug ", drug)) + theme_bw() +
