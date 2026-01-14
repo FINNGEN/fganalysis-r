@@ -104,11 +104,21 @@ create_drug_response <- function(conn, lablist, druglist,
         use_only_reimbursement = use_only_reimbursement_drugs)
 
     # get_drug_purchases returns ATC column by default (renamed from CODE1)
-    dr_first_purchase <- drug_purchases %>%
-        group_by(.data$FINNGENID) %>%
-        arrange(.data$EVENT_AGE) %>%
-        dplyr::summarize(n = n(), first_drug_age = first(.data$EVENT_AGE), 
-        first_drug = first(.data$ATC), first_drug_date = first(.data$APPROX_EVENT_DAY))
+    # Also capture drug names from VNR data if available
+    if ("MedicineName" %in% colnames(drug_purchases) && "Substance" %in% colnames(drug_purchases)) {
+        dr_first_purchase <- drug_purchases %>%
+            group_by(.data$FINNGENID) %>%
+            arrange(.data$EVENT_AGE) %>%
+            dplyr::summarize(n = n(), first_drug_age = first(.data$EVENT_AGE), 
+            first_drug = first(.data$ATC), first_drug_date = first(.data$APPROX_EVENT_DAY),
+            first_drug_name = first(.data$MedicineName), first_drug_substance = first(.data$Substance))
+    } else {
+        dr_first_purchase <- drug_purchases %>%
+            group_by(.data$FINNGENID) %>%
+            arrange(.data$EVENT_AGE) %>%
+            dplyr::summarize(n = n(), first_drug_age = first(.data$EVENT_AGE), 
+            first_drug = first(.data$ATC), first_drug_date = first(.data$APPROX_EVENT_DAY))
+    }
     print(paste0("Number of drug purchases: ", nrow(drug_purchases)))
     lab_measurements <- dplyr::left_join(lab_measurements, dr_first_purchase, by = "FINNGENID")
     lab_measurements <- lab_measurements %>% mutate(time_to_drug = .data$first_drug_age - .data$EVENT_AGE)
