@@ -9,6 +9,25 @@ NULL
 # Declare global variables to avoid R CMD check notes
 utils::globalVariables(c("FINNGENID", "EVENT_AGE", "first_drug_age", "time_to_drug"))
 
+#' @title Validate external lab measurements data frame
+#' @description Internal helper function to validate external lab data format
+#' @param external_labs Data frame with external lab measurements
+#' @return NULL if validation passes, stops with error message if validation fails
+#' @keywords internal
+validate_external_labs <- function(external_labs) {
+    if (!is.null(external_labs)) {
+        if (!is.data.frame(external_labs)) {
+            stop("external_labs must be a data frame")
+        }
+        required_cols <- c("FINNGENID", "OMOP_CONCEPT_ID", "EVENT_AGE", "VALUE")
+        missing_cols <- setdiff(required_cols, colnames(external_labs))
+        if (length(missing_cols) > 0) {
+            stop("external_labs is missing required columns: ", paste(missing_cols, collapse = ", "))
+        }
+    }
+    invisible(NULL)
+}
+
 #' @title data object returned from drug response analyse (create_drug_response)
 #' @param responses data frame with response data
 #' @param lab_measurements data frame with all lab measurements
@@ -69,16 +88,7 @@ create_drug_response <- function(conn, lablist, druglist,
     assertCharacter(finngen_ids, null.ok = TRUE, any.missing = FALSE)
     
     # Validate external_labs if provided
-    if (!is.null(external_labs)) {
-        if (!is.data.frame(external_labs)) {
-            stop("external_labs must be a data frame")
-        }
-        required_cols <- c("FINNGENID", "OMOP_CONCEPT_ID", "EVENT_AGE", "VALUE")
-        missing_cols <- setdiff(required_cols, colnames(external_labs))
-        if (length(missing_cols) > 0) {
-            stop("external_labs is missing required columns: ", paste(missing_cols, collapse = ", "))
-        }
-    }
+    validate_external_labs(external_labs)
     
     # Extract data from connection object
     kanta <- conn$labs
@@ -238,16 +248,7 @@ get_measurements_before_drug <- function(conn, lablist, druglist, months_before,
     }
     
     # Validate external_labs if provided
-    if (!is.null(external_labs)) {
-        if (!is.data.frame(external_labs)) {
-            stop("external_labs must be a data frame")
-        }
-        required_cols <- c("FINNGENID", "OMOP_CONCEPT_ID", "EVENT_AGE", "VALUE")
-        missing_cols <- setdiff(required_cols, colnames(external_labs))
-        if (length(missing_cols) > 0) {
-            stop("external_labs is missing required columns: ", paste(missing_cols, collapse = ", "))
-        }
-    }
+    validate_external_labs(external_labs)
 
     # 1. Get all relevant lab measurements and drug purchases
     if (!is.null(external_labs)) {
