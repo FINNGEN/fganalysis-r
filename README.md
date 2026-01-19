@@ -255,9 +255,9 @@ The package follows the **single responsibility principle** for covariate handli
 - **`plot_median_pre_drug(measurements_before_mad, measurements_after_mad, output_dir = ".", output_file_prefix = "", sex_cols = c("SEX", "SEX_IMPUTED"))`**: Generates diagnostic plots for median pre-drug analysis, including distribution plots before and after MAD outlier removal, and sex-stratified violin plots. This function is designed to work with the output from `get_median_pre_drug` or similar data structures.
 
 ### Analysis
-- **`create_drug_response(conn, lablist, druglist, before_period, after_period, finngen_ids = NULL, remove_outliers_sd = NULL)`**: The main analysis function. It calculates the drug response based on lab value changes before and after the first drug purchase. The `remove_outliers_sd` parameter can be used to remove outliers (specify number of SDs from mean, e.g., 1-6).
+- **`create_drug_response(conn, lablist, druglist, before_period, after_period, finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL)`**: The main analysis function. It calculates the drug response based on lab value changes before and after the first drug purchase. The `remove_outliers_sd` parameter can be used to remove outliers (specify number of SDs from mean, e.g., 1-6). The `external_labs` parameter allows you to supply your own lab measurements instead of using Kanta lab values (see "Using External Lab Values" section below).
 - **`generate_response_summary(lab_measurements, before_period, after_period, summary_function = median)`**: A helper function to calculate the summary statistics for the response (e.g., median value before and after treatment). Called by `create_drug_response`. The `summary_function` parameter allows using different summary statistics (default is median).
-- **`get_measurements_before_drug(conn, lablist, druglist, months_before = 3, remove_outliers_sd = NULL, winsorize_pct = NULL, range_sd_filter = NULL)`**: A standalone function to retrieve lab measurements, specifically designed for preparing data for BLUP analysis. It filters measurements to a specified window before a drug purchase for exposed individuals and includes all measurements for unexposed individuals.
+- **`get_measurements_before_drug(conn, lablist, druglist, months_before = 3, remove_outliers_sd = NULL, winsorize_pct = NULL, range_sd_filter = NULL, external_labs = NULL)`**: A standalone function to retrieve lab measurements, specifically designed for preparing data for BLUP analysis. It filters measurements to a specified window before a drug purchase for exposed individuals and includes all measurements for unexposed individuals.
   - `conn`: A `fg_data_connection` object.
   - `lablist`: A character vector of OMOP concept IDs for the labs of interest.
   - `druglist`: A character vector of ATC drug codes to define the "exposed" cohort.
@@ -268,6 +268,7 @@ The package follows the **single responsibility principle** for covariate handli
       - winsorize_pct = 0.05 → Caps at 5th and 95th percentiles (5% on each tail)
       - winsorize_pct = 0.10 → Caps at 10th and 90th percentiles (10% on each tail)
   - `range_sd_filter`: An optional parameter for robust outlier removal. It takes a list with three named elements: `lower_bound`, `upper_bound`, and `nsd`. The function calculates the mean and standard deviation on the subset of data within the specified bounds and then removes all values from the original data that are more than `nsd` standard deviations from that calculated mean. This is useful for removing extreme outliers without them skewing the statistics used for the filtering itself. Example: `range_sd_filter = list(lower_bound = 50, upper_bound = 200, nsd = 4)`.
+  - `external_labs`: Optional parameter to supply your own lab measurements instead of using Kanta lab values (see "Using External Lab Values" section below).
    Note: Only one outlier removal method (`remove_outliers_sd`, `winsorize_pct`, or `range_sd_filter`) should be used at a time.
 
 - **`get_median_pre_drug(conn, lablist, druglist, months_before = 1, remove_outliers_mad_th = 5, output_dir = ".", output_file_prefix = "")`**: Calculates median lab values pre-medication with MAD-based outlier removal.
@@ -656,7 +657,96 @@ plot_median_pre_drug(
 
 This will produce files like `statin_ldl_response_summary.pdf`, `statin_ldl_response_summary_responses_by_drug.txt`, etc., in your working directory.
 
+## Using External Lab Values
+
+The package now supports using external lab measurements instead of the default Kanta lab values. This is useful when you have lab data from other sources or when you want to use preprocessed lab measurements.
+
+### Requirements for External Lab Data
+
+External lab data must be provided as a data frame with the following required columns:
+- **`FINNGENID`**: Individual identifier
+- **`OMOP_CONCEPT_ID`**: Lab measurement concept ID
+- **`EVENT_AGE`**: Age at measurement
+- **`VALUE`**: Lab value (numeric)
+
+### Example: Using External Labs with Drug Response Analysis
+
+```R
+# Create or load your external lab data
+external_labs <- data.frame(
+  FINNGENID = c("FG1", "FG1", "FG1", "FG2", "FG2", "FG2"),
+  OMOP_CONCEPT_ID = c("3001308", "3001308", "3001308", "3001308", "3001308", "3001308"),
+  EVENT_AGE = c(49.5, 49.8, 50.5, 48.0, 49.0, 50.2),
+  VALUE = c(150, 145, 130, 160, 155, 135)
+)
+
+# Use external labs in drug response analysis
+response_data <- create_drug_response(
+  conn = conn,
+  lablist = c("3001308"),  # LDL cholesterol
+  druglist = c("C10AA"),   # Statins
+  before_period = c(-1, 0),
+  after_period = c(0.1, 1),
+  external_labs = external_labs  # Use external lab data instead of Kanta
+)
+
+# The rest of the workflow is the same
+summarize_drug_response(response_data, out_file_prefix = "external_lab_response")
+```
+
+### Example: Using External Labs with BLUP Analysis
+
+```R
+# Create or load your external lab data
+external_labs <- data.frame(
+  FINNGENID = rep(paste0("FG", 1:20), each = 5),
+  OMOP_CONCEPT_ID = "3001308",
+  EVENT_AGE = rep(seq(30, 70, length.out = 5), 20) + rnorm(100, 0, 2),
+  VALUE = rnorm(100, 150, 20)
+)
+
+# Get measurements before drug using external labs
+measurements <- get_measurements_before_drug(
+  conn = conn,
+  lablist = c("3001308"),
+  druglist = c("C10AA"),
+  months_before = 12,
+  external_labs = external_labs  # Use external lab data
+)
+
+# Add covariates if needed
+measurements <- join_covariates_to_labs(
+  lab_data = measurements,
+  covariates = conn$cov_pheno,
+  covariate_cols = c("SEX")
+)
+
+# Calculate BLUP slopes
+blup_results <- calculate_blup_slopes(
+  data = measurements,
+  output_dir = "blup_output",
+  include_sex = TRUE
+)
+```
+
+### Benefits of Using External Labs
+
+- **Flexibility**: Use lab data from any source, not just Kanta
+- **Preprocessing**: Apply custom preprocessing or quality control before analysis
+- **Integration**: Combine lab data from multiple sources
+- **Compatibility**: Works seamlessly with all existing analysis functions
+
+### Notes
+
+- When `external_labs` is provided, the `use_lab_free_text_values` parameter is ignored
+- External labs are automatically filtered by `lablist` and `finngen_ids` (if provided)
+- All other parameters (outlier removal, filtering, etc.) work the same way
+- The connection object is still required for drug purchase data
+
 ## Recent Updates
+
+### New Features
+- **External Lab Values Support**: Added `external_labs` parameter to `create_drug_response()` and `get_measurements_before_drug()` functions, allowing users to supply their own lab measurements instead of using Kanta lab values.
 
 ### Bug Fixes
 - **Fixed `get_lab_measurements` covariate handling**: The function now correctly handles covariate columns by only selecting them from the appropriate table after joining. Previously, the function would error if covariate columns didn't exist in the lab data table.

@@ -9,6 +9,45 @@ NULL
 # Declare global variables to avoid R CMD check notes
 utils::globalVariables(c("FINNGENID", "EVENT_AGE", "first_drug_age", "time_to_drug"))
 
+#' @title Filter external lab measurements
+#' @description Internal helper function to filter external lab data
+#' @param external_labs Data frame with external lab measurements
+#' @param lablist Character vector of OMOP concept IDs to filter by
+#' @param finngen_ids Optional character vector of FINNGENIDs to filter by
+#' @return Filtered data frame
+#' @keywords internal
+filter_external_labs <- function(external_labs, lablist, finngen_ids = NULL) {
+    if (is.null(finngen_ids)) {
+        external_labs %>%
+            filter(.data$OMOP_CONCEPT_ID %in% lablist,
+                   !is.na(.data$VALUE))
+    } else {
+        external_labs %>%
+            filter(.data$OMOP_CONCEPT_ID %in% lablist,
+                   .data$FINNGENID %in% finngen_ids,
+                   !is.na(.data$VALUE))
+    }
+}
+
+#' @title Validate external lab measurements data frame
+#' @description Internal helper function to validate external lab data format
+#' @param external_labs Data frame with external lab measurements
+#' @return NULL if validation passes, stops with error message if validation fails
+#' @keywords internal
+validate_external_labs <- function(external_labs) {
+    if (!is.null(external_labs)) {
+        if (!is.data.frame(external_labs)) {
+            stop("external_labs must be a data frame")
+        }
+        required_cols <- c("FINNGENID", "OMOP_CONCEPT_ID", "EVENT_AGE", "VALUE")
+        missing_cols <- setdiff(required_cols, colnames(external_labs))
+        if (length(missing_cols) > 0) {
+            stop("external_labs is missing required columns: ", paste(missing_cols, collapse = ", "))
+        }
+    }
+    invisible(NULL)
+}
+
 #' @title data object returned from drug response analyse (create_drug_response)
 #' @param responses data frame with response data
 #' @param lab_measurements data frame with all lab measurements
@@ -46,12 +85,13 @@ drug.response <- function(responses, lab_measurements,
 #' @param use_only_reimbursement_drugs Logical, if TRUE, use only reimbursement data (default FALSE) and do not include delivery data from KANTA
 #' @param finngen_ids Optional character vector of FINNGENIDs to restrict analysis
 #' @param remove_outliers_sd Optional numeric value (1-6) to remove outliers based on standard deviations
+#' @param external_labs Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE
 #' @return drug.response object
 #' @export
 create_drug_response <- function(conn, lablist, druglist,
                                  before_period, after_period, summary_function=median, filter_min_max = c(-Inf, Inf),
                                  use_lab_free_text_values = TRUE, use_only_reimbursement_drugs = FALSE,
-                                 finngen_ids = NULL, remove_outliers_sd = NULL) {
+                                 finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL) {
     # Validate all input parameters immediately
     if (!inherits(conn, "fg_data_connection")) {
         stop("conn must be an fg_data_connection object")
@@ -67,15 +107,24 @@ create_drug_response <- function(conn, lablist, druglist,
     assertNumeric(remove_outliers_sd, null.ok = TRUE, len = 1, lower=1, upper=6)
     assertCharacter(finngen_ids, null.ok = TRUE, any.missing = FALSE)
     
+    # Validate external_labs if provided
+    validate_external_labs(external_labs)
+    
     # Extract data from connection object
     kanta <- conn$labs
     phenos <- conn$pheno
 
     print("Querying lab measurements...")
-    lab_measurements <- get_lab_measurements(
-        all_labs = conn$labs, lablist = lablist, finngen_ids = finngen_ids,
-        require_values = TRUE, use_freetext_values = use_lab_free_text_values
-    )
+    if (!is.null(external_labs)) {
+        print("Using external lab measurements instead of Kanta lab values...")
+        # Filter external labs to match lablist and finngen_ids
+        lab_measurements <- filter_external_labs(external_labs, lablist, finngen_ids)
+    } else {
+        lab_measurements <- get_lab_measurements(
+            all_labs = conn$labs, lablist = lablist, finngen_ids = finngen_ids,
+            require_values = TRUE, use_freetext_values = use_lab_free_text_values
+        )
+    }
 
     orig <- nrow(lab_measurements)
     lab_measurements <- lab_measurements %>% filter(.data$VALUE >= filter_min_max[1] &
@@ -194,21 +243,33 @@ generate_response_summary <- function(lab_measurements, before_period, after_per
 #' from the calculated mean. This approach is useful for removing extreme outliers without them
 #' skewing the statistics used for the filtering itself. Example:
 #' `range_sd_filter = list(lower_bound = 50, upper_bound = 200, nsd = 4)`.
+#' @param external_labs Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE
 #' @return A data frame of lab measurements with an `n_measurements` column, compatible with `calculate_blup_slopes`.
 #' @export
 get_measurements_before_drug <- function(conn, lablist, druglist, months_before, use_freetext_values = TRUE,
                                          use_only_reimbursement = FALSE,
                                          remove_outliers_sd = NULL, winsorize_pct = NULL,
-                                         range_sd_filter = NULL) {
+                                         range_sd_filter = NULL, external_labs = NULL) {
     if (!is.null(remove_outliers_sd) && !is.null(winsorize_pct)) {
         stop("Please specify only one outlier removal method: `remove_outliers_sd` or `winsorize_pct`.")
     }
     if ((!is.null(remove_outliers_sd) || !is.null(winsorize_pct)) && !is.null(range_sd_filter)) {
         stop("`range_sd_filter` cannot be used with `remove_outliers_sd` or `winsorize_pct`.")
     }
+    
+    # Validate external_labs if provided
+    validate_external_labs(external_labs)
 
     # 1. Get all relevant lab measurements and drug purchases
-    lab_measurements <- get_lab_measurements(conn$labs, lablist, require_values = TRUE, use_freetext_values = use_freetext_values)
+    if (!is.null(external_labs)) {
+        print("Using external lab measurements instead of Kanta lab values...")
+        # Filter external labs to match lablist (finngen_ids not applicable here)
+        lab_measurements <- external_labs %>%
+            filter(.data$OMOP_CONCEPT_ID %in% lablist,
+                   !is.na(.data$VALUE))
+    } else {
+        lab_measurements <- get_lab_measurements(conn$labs, lablist, require_values = TRUE, use_freetext_values = use_freetext_values)
+    }
 
     first_purchases <- get_first_purchase(conn, druglist, use_only_reimbursement = use_only_reimbursement) %>%
         select(FINNGENID, first_drug_age = EVENT_AGE)
@@ -293,18 +354,23 @@ get_measurements_before_drug <- function(conn, lablist, druglist, months_before,
 #' @param remove_outliers_mad_th The threshold for MAD-based outlier removal (default: 5).
 #' @param output_dir The directory to save outputs (default: `"."`).
 #' @param output_file_prefix A prefix for output file names.
+#' @param external_labs Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE
 #' @return A data frame with median lab values per individual, ready for GWAS analysis.
 #' @export
 get_median_pre_drug <- function(conn, lablist, druglist, months_before = 1,
                                 remove_outliers_mad_th = 5,
                                 output_dir = ".",
-                                output_file_prefix = "") {
+                                output_file_prefix = "", external_labs = NULL) {
     # 1. Get measurements before drug purchase
+    # Validate external_labs if provided
+    validate_external_labs(external_labs)
+    
     measurements <- get_measurements_before_drug(
         conn = conn,
         lablist = lablist,
         druglist = druglist,
-        months_before = months_before
+        months_before = months_before,
+        external_labs = external_labs
     )
 
     # 2. MAD outlier removal

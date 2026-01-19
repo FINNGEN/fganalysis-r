@@ -11,7 +11,8 @@ get_median_pre_drug(
   months_before = 1,
   remove_outliers_mad_th = 5,
   output_dir = ".",
-  output_file_prefix = ""
+  output_file_prefix = "",
+  external_labs = NULL
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ get_median_pre_drug(
 \item{output_dir}{The directory to save outputs (default: `"."`).}
 
 \item{output_file_prefix}{A prefix for output file names.}
+
+\item{external_labs}{Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE}
 }
 \value{
 A data frame with median lab values per individual, ready for GWAS analysis.
