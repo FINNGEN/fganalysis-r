@@ -354,18 +354,23 @@ get_measurements_before_drug <- function(conn, lablist, druglist, months_before,
 #' @param remove_outliers_mad_th The threshold for MAD-based outlier removal (default: 5).
 #' @param output_dir The directory to save outputs (default: `"."`).
 #' @param output_file_prefix A prefix for output file names.
+#' @param external_labs Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE
 #' @return A data frame with median lab values per individual, ready for GWAS analysis.
 #' @export
 get_median_pre_drug <- function(conn, lablist, druglist, months_before = 1,
                                 remove_outliers_mad_th = 5,
                                 output_dir = ".",
-                                output_file_prefix = "") {
+                                output_file_prefix = "", external_labs = NULL) {
     # 1. Get measurements before drug purchase
+    # Validate external_labs if provided
+    validate_external_labs(external_labs)
+    
     measurements <- get_measurements_before_drug(
         conn = conn,
         lablist = lablist,
         druglist = druglist,
-        months_before = months_before
+        months_before = months_before,
+        external_labs = external_labs
     )
 
     # 2. MAD outlier removal
