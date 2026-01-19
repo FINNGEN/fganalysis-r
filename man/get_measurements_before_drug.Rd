@@ -13,7 +13,8 @@ get_measurements_before_drug(
   use_only_reimbursement = FALSE,
   remove_outliers_sd = NULL,
   winsorize_pct = NULL,
-  range_sd_filter = NULL
+  range_sd_filter = NULL,
+  external_labs = NULL
 )
 }
 \arguments{
@@ -45,6 +46,8 @@ robust range-based standard deviation filtering. This implements a two-step outl
 from the calculated mean. This approach is useful for removing extreme outliers without them
 skewing the statistics used for the filtering itself. Example:
 `range_sd_filter = list(lower_bound = 50, upper_bound = 200, nsd = 4)`.}
+
+\item{external_labs}{Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE}
 }
 \value{
 A data frame of lab measurements with an `n_measurements` column, compatible with `calculate_blup_slopes`.
