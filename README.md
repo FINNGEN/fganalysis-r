@@ -62,7 +62,7 @@ install.packages("/usr/finngen-repos/cran/source/src/contrib/duckdbfs_0.1.0.tar.
 
 library(devtools)
 load_all("/finngen/library-green/code/fganalysis/")
-conn <- connect_fgdata("/finngen/library-green/code/config/db_config_sb.json")
+conn <- connect_fgdata("/finngen/library-green/code/fganalysis/config/db_config_sb.json")
 
 
 ```
