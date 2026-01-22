@@ -171,9 +171,11 @@ generate_response_summary <- function(lab_measurements, before_period, after_per
             baseline_age = first(.data$first_drug_age),
             baseline_date = first(.data$first_drug_date),
             first_drug = first(.data$first_drug),
+            first_drug_name = if("first_drug_name" %in% names(.)) first(.data$first_drug_name) else NA,
+            first_drug_substance = if ("first_drug_substance" %in% names(.)) first(.data$first_drug_substance) else NA,
             response = ifelse(!is.na(.data$after) & !is.na(.data$before), .data$after - .data$before, NA),
             response_percent = .data$response/ .data$before * 100
-
+            
         )
     lab_response
 }

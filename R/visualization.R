@@ -20,16 +20,38 @@ quant_text <- function(vector) {
 #' @return data frame with drug_label column added
 #' @noRd
 create_drug_labels <- function(data) {
-  if ("first_drug_name" %in% colnames(data) && "first_drug_substance" %in% colnames(data)) {
+
+    ## some VNR codes may not have drug names or substances so get first ATC code with non missing substance/name and map with that.
+
+    atc_to_name_substance <- data %>%
+    filter(!is.na(.data$first_drug_substance)) %>%
+    select(.data$first_drug, .data$first_drug_substance, .data$first_drug_name) %>%
+    distinct() %>%
+    group_by(.data$first_drug) %>%
+    summarise(
+        map_first_drug_name = first(na.omit(.data$first_drug_name)),
+        map_first_drug_substance = first(na.omit(.data$first_drug_substance)),
+        .groups = "drop"
+    )
+
+    data <- data %>%
+    left_join(atc_to_name_substance, by = "first_drug") %>%
+    mutate(
+        ## do not overwrite existing names as they can be different but substance should be same for same ATC code
+        first_drug_name = .data$map_first_drug_name,
+        first_drug_substance = ifelse(!is.na(.data$first_drug_substance), .data$first_drug_substance, .data$map_first_drug_substance)
+    ) %>% select(-.data$map_first_drug_name, -.data$map_first_drug_substance)
+
+
+    if ("first_drug_substance" %in% colnames(data)) {
     data %>% 
-      mutate(drug_label = ifelse(!is.na(.data$first_drug_name) & !is.na(.data$first_drug_substance),
-                                paste0(.data$first_drug, " (", .data$first_drug_substance, " - ", .data$first_drug_name, ")"),
-                                ifelse(!is.na(.data$first_drug_substance),
-                                      paste0(.data$first_drug, " (", .data$first_drug_substance, ")"),
-                                      .data$first_drug)))
-  } else {
-    data %>% mutate(drug_label = .data$first_drug)
-  }
+        mutate(drug_label = ifelse(!is.na(.data$first_drug_substance),
+                                        paste0(.data$first_drug, 
+                                        " (", .data$first_drug_substance, ")"),
+                                        .data$first_drug))
+    } else {
+        data %>% mutate(drug_label = .data$first_drug)
+    }
 }
 
 
@@ -71,38 +93,35 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
         "N events" = c(n_lab_meas, n_drugs_meas, inds_in_analysis, sum(n_no_pre$n_after), sum(n_no_pos$n_before))
     ), rows = NULL))
 
-
     per_drug <- responses %>%
-        group_by(.data$drug_label, .data$first_drug) %>%
+        group_by(.data$first_drug, .data$drug_label ) %>%
         summarise(
             N = n(), p = summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4], sd = sd(.data$response),
             response = mean(.data$response),
             purch_age_dist = quant_text(.data$baseline_age),
             .groups = "drop"
-        ) %>%
-        select(-.data$first_drug)
+        )
 
     all_resp <- rbind(per_drug, data.frame(
-        drug_label = "All drugs", N = inds_in_analysis,
+        drug_label = "All drugs", first_drug="All drugs", N = inds_in_analysis,
         response = mean(responses$response), p = summary(lm("response ~ 1", data = responses))$coefficients[1, 4],
         purch_age_dist = quant_text(responses$baseline_age), sd = sd(responses$response)
     ))
 
     write.table(
         all_resp %>% arrange(desc(.data$N)) %>%
-            select(.data$drug_label, .data$N, .data$response, .data$p, .data$purch_age_dist),
+            select(.data$first_drug,.data$drug_label, .data$N, .data$response, .data$p, .data$purch_age_dist),
         paste0(out_file_prefix, "_responses_by_drug.txt"),
         sep = "\t", row.names = FALSE, quote = FALSE
     )
 
 
-    plot(ggtexttable(responses %>% group_by(.data$drug_label) %>%
+    plot(ggtexttable(responses %>% group_by(.data$drug_label,.data$first_drug) %>%
         summarise(
             n_purch = n(), n_indiv = length(unique(.data$FINNGENID)),
             p = summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4],
             response = mean(.data$response),
             purch_age_dist = quant_text(.data$baseline_age),
-            .groups = "drop"
         ) %>%
         select(.data$drug_label, .data$n_purch, .data$response, .data$p, .data$purch_age_dist) %>%
         arrange(desc(.data$n_purch))))
@@ -233,8 +252,6 @@ plot_lab_value_distribution <- function(drug_response, remove_outliers = FALSE) 
     )) %>%
     filter(!is.na(.data$period))
 
-  # Create drug label combining ATC code with drug name if available
-  lab_data_periods <- create_drug_labels(lab_data_periods)
 
   plot_data <- lab_data_periods
   if (remove_outliers) {
