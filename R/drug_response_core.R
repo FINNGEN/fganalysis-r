@@ -153,11 +153,21 @@ create_drug_response <- function(conn, lablist, druglist,
         use_only_reimbursement = use_only_reimbursement_drugs)
 
     # get_drug_purchases returns ATC column by default (renamed from CODE1)
-    dr_first_purchase <- drug_purchases %>%
-        group_by(.data$FINNGENID) %>%
-        arrange(.data$EVENT_AGE) %>%
-        dplyr::summarize(n = n(), first_drug_age = first(.data$EVENT_AGE), 
-        first_drug = first(.data$ATC), first_drug_date = first(.data$APPROX_EVENT_DAY))
+    # Also capture drug names from VNR data if available
+    if ("MedicineName" %in% colnames(drug_purchases) && "Substance" %in% colnames(drug_purchases)) {
+        dr_first_purchase <- drug_purchases %>%
+            group_by(.data$FINNGENID) %>%
+            arrange(.data$EVENT_AGE) %>%
+            dplyr::summarize(n = n(), first_drug_age = first(.data$EVENT_AGE), 
+            first_drug = first(.data$ATC), first_drug_date = first(.data$APPROX_EVENT_DAY),
+            first_drug_name = first(.data$MedicineName), first_drug_substance = first(.data$Substance))
+    } else {
+        dr_first_purchase <- drug_purchases %>%
+            group_by(.data$FINNGENID) %>%
+            arrange(.data$EVENT_AGE) %>%
+            dplyr::summarize(n = n(), first_drug_age = first(.data$EVENT_AGE), 
+            first_drug = first(.data$ATC), first_drug_date = first(.data$APPROX_EVENT_DAY))
+    }
     print(paste0("Number of drug purchases: ", nrow(drug_purchases)))
     lab_measurements <- dplyr::left_join(lab_measurements, dr_first_purchase, by = "FINNGENID")
     lab_measurements <- lab_measurements %>% mutate(time_to_drug = .data$first_drug_age - .data$EVENT_AGE)
@@ -210,9 +220,11 @@ generate_response_summary <- function(lab_measurements, before_period, after_per
             baseline_age = first(.data$first_drug_age),
             baseline_date = first(.data$first_drug_date),
             first_drug = first(.data$first_drug),
+            first_drug_name = if("first_drug_name" %in% names(.)) first(.data$first_drug_name) else NA,
+            first_drug_substance = if ("first_drug_substance" %in% names(.)) first(.data$first_drug_substance) else NA,
             response = ifelse(!is.na(.data$after) & !is.na(.data$before), .data$after - .data$before, NA),
             response_percent = .data$response/ .data$before * 100
-
+            
         )
     lab_response
 }
