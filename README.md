@@ -1,5 +1,43 @@
 # fganalysis R Package
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Package Structure](#package-structure)
+  - [R/ Directory Structure](#r-directory-structure)
+- [Installation](#installation)
+- [Data Access](#data-access)
+  - [Configuration](#configuration)
+  - [Local Configuration](#local-configuration)
+  - [Connecting to Data](#connecting-to-data)
+- [Usage](#usage)
+  - [Functions](#functions)
+- [Examples](#examples)
+- [Available Functions](#available-functions)
+  - [Data Connection](#data-connection)
+  - [Data Retrieval](#data-retrieval)
+  - [Covariate Handling](#covariate-handling)
+  - [Visualization](#visualization)
+  - [Analysis](#analysis)
+  - [Output File Naming Convention](#output-file-naming-convention)
+  - [Summarization and Output](#summarization-and-output)
+  - [BLUP Analysis (Linear Mixed Models)](#blup-analysis-linear-mixed-models)
+- [Quality Control and Normalization Functions](#quality-control-and-normalization-functions)
+- [Example Workflow](#example-workflow)
+- [Using External Lab Values](#using-external-lab-values)
+  - [Requirements for External Lab Data](#requirements-for-external-lab-data)
+  - [Example: Using External Labs with Drug Response Analysis](#example-using-external-labs-with-drug-response-analysis)
+  - [Example: Using External Labs with BLUP Analysis](#example-using-external-labs-with-blup-analysis)
+  - [Benefits of Using External Labs](#benefits-of-using-external-labs)
+  - [Notes](#notes)
+- [Recent Updates](#recent-updates)
+  - [New Features](#new-features)
+  - [Bug Fixes](#bug-fixes)
+- [Development](#development)
+  - [Running Tests](#running-tests)
+- [Authors](#authors)
+- [License](#license)
+
 ## Overview
 
 The `fganalysis` is an R package designed for common analyses performed in FinnGen. It provides functions for data processing, summarization, and visualization of lab measurements and drug purchases to study drug response.
@@ -673,22 +711,19 @@ External lab data must be provided as a data frame with the following required c
 
 ```R
 # Create or load your external lab data
-external_labs <- data.frame(
-  FINNGENID = c("FG1", "FG1", "FG1", "FG2", "FG2", "FG2"),
-  OMOP_CONCEPT_ID = c("3001308", "3001308", "3001308", "3001308", "3001308", "3001308"),
-  EVENT_AGE = c(49.5, 49.8, 50.5, 48.0, 49.0, 50.2),
-  VALUE = c(150, 145, 130, 160, 155, 135)
-)
+# here we are getting weights from finngen extended hilmo/avohilmo/primaryu dat
 
-# Use external labs in drug response analysis
-response_data <- create_drug_response(
-  conn = conn,
-  lablist = c("3001308"),  # LDL cholesterol
-  druglist = c("C10AA"),   # Statins
-  before_period = c(-1, 0),
-  after_period = c(0.1, 1),
-  external_labs = external_labs  # Use external lab data instead of Kanta
-)
+weights <- conn$long_anthropometric %>% filter(!is.na(WEIGHT)) %>%
+            mutate(OMOP_CONCEPT_ID="WEIGHT", VALUE=WEIGHT) %>%
+  select(FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE) %>% collect()
+
+
+## glp1 analog effect on weight
+resp_weight <- create_drug_response(conn, c("WEIGHT"),
+                             druglist=c("A10BJ"),before_period,after_period,
+                             external_labs = weights )
+summarize_drug_response(resp_weight, out_file_prefix="glp1_weight")
+
 
 # The rest of the workflow is the same
 summarize_drug_response(response_data, out_file_prefix = "external_lab_response")
