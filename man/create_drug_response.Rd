@@ -15,7 +15,8 @@ create_drug_response(
   use_lab_free_text_values = TRUE,
   use_only_reimbursement_drugs = FALSE,
   finngen_ids = NULL,
-  remove_outliers_sd = NULL
+  remove_outliers_sd = NULL,
+  external_labs = NULL
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ create_drug_response(
 \item{finngen_ids}{Optional character vector of FINNGENIDs to restrict analysis}
 
 \item{remove_outliers_sd}{Optional numeric value (1-6) to remove outliers based on standard deviations}
+
+\item{external_labs}{Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE}
 }
 \value{
 drug.response object
