@@ -28,17 +28,37 @@ test_that("generate_response_summary calculates correct summaries", {
         first_drug_date = as.Date(c("2015-07-17" , "2015-07-17", "2015-07-17", "2015-07-17", "2015-07-17",
                                          "2015-07-18", "2015-07-18", "2015-07-18", "2015-07-18",
                                          "2015-07-19", "2015-07-19"))
+        
     )
-    lab_measurements <- lab_measurements %>% mutate(time_to_drug = first_drug_age - EVENT_AGE)
+
+    drug_purchases <- data.frame(
+        FINNGENID = c("FG1", "FG2", "FG3"),
+        APPROX_EVENT_DAY = as.Date(c("2015-07-17" , "2015-07-18", "2015-07-19")),
+        ATC = c("A01","A02", "A03"),
+        EVENT_AGE = c(21.05, 34.2, 35),
+        VNR = c("123","456", "789"),
+        MERGED_SOURCE = c("PURCH","PURCH", "PURCH"),
+        time_to_first_drug = c(0,0,0),
+        purchase_period = c("Baseline", "Baseline", "Baseline")
+    )
+
+    lab_measurements <- lab_measurements %>% mutate(time_to_first_drug = first_drug_age - EVENT_AGE)
 
     before_period <- c(-1.5, 0)
     after_period <- c(0.00001, 1.5)
 
-    result <- generate_response_summary(lab_measurements, before_period, after_period)
+    # Add lab_period column as expected by generate_response_summary
+    lab_measurements <- lab_measurements %>% mutate(lab_period = case_when(
+        dplyr::between(time_to_first_drug, -before_period[2], -before_period[1]) ~ "Baseline",
+        dplyr::between(time_to_first_drug, -after_period[2], -after_period[1]) ~ "Followup",
+        TRUE ~ NA_character_
+    ))
+
+    result <- generate_response_summary(lab_measurements, drug_purchases = drug_purchases, before_period, after_period)
 
     expect_equal(nrow(result), 2)
-    expect_equal(result$before, c(31, 27.5))
-    expect_equal(result$after, c(12, 47))
+    expect_equal(result$baseline, c(31, 27.5))
+    expect_equal(result$followup, c(12, 47))
     expect_equal(result$response, c(-19, 19.5))
 })
 
@@ -67,7 +87,9 @@ test_that("create_drug_response returns the correct structure", {
         ATC = c("A01","A02", "A02"),
         EVENT_AGE = c(21.0, 20.0, 35),
         VNR = c("123","456", "789"),
-        MERGED_SOURCE = c("PURCH","PURCH", "PURCH")
+        MERGED_SOURCE = c("PURCH","PURCH", "PURCH"),
+        time_to_first_drug = c(0.4, 0.5, 0),
+        MEDICATION_QUANTITY = c(1, 1, 1)
     )
 
     phenos <- data.frame(
@@ -92,8 +114,8 @@ test_that("create_drug_response returns the correct structure", {
     filtres <- result$responses %>% filter(!is.na(response))
     expect_equal(nrow(result$responses %>% filter(!is.na(response))), 2)
     expect_equal(filtres$FINNGENID, c("FG1", "FG2"))
-    expect_equal(filtres$before, c(16.6, 9.5))
-    expect_equal(filtres$after, c(25, 40))
+    expect_equal(filtres$baseline, c(16.6, 9.5))
+    expect_equal(filtres$followup, c(25, 40))
     expect_equal(filtres$response, c(8.4, 30.5))
 
 
@@ -102,8 +124,8 @@ test_that("create_drug_response returns the correct structure", {
     filtres <- result$responses %>% filter(!is.na(response))
     expect_equal(nrow(result$responses %>% filter(!is.na(response))), 1)
     expect_equal(filtres$FINNGENID, c("FG2"))
-    expect_equal(filtres$before, c(9.5))
-    expect_equal(filtres$after, c(40))
+    expect_equal(filtres$baseline, c(9.5))
+    expect_equal(filtres$followup, c(40))
     expect_equal(filtres$response, c(30.5))
 
 
@@ -112,8 +134,8 @@ test_that("create_drug_response returns the correct structure", {
     expect_s3_class(result, "drug.response")
     expect_equal(nrow(filtres), 2)
     expect_equal(filtres$FINNGENID, c("FG1", "FG2"))
-    expect_equal(filtres$before, c(16.6, 9.5))
-    expect_equal(filtres$after, c(25, 40))
+    expect_equal(filtres$baseline, c(16.6, 9.5))
+    expect_equal(filtres$followup, c(25, 40))
     expect_equal(filtres$response, c(8.4, 30.5))
 
 })

@@ -6,7 +6,6 @@ mock_conn <- function() {
     labs <- data.frame(
         FINNGENID = c("FG1", "FG1", "FG1", "FG2", "FG2", "FG3", "FG3", "FG4"),
         OMOP_CONCEPT_ID = "3001308",
-        
         EVENT_AGE = c(50.0, 50.1, 50.5, 60.0, 60.3, 70.0, 70.2, 80.0),
         MEASURED_VALUE_HARMONIZED = c(100, 102, 150, 110, 112, 120, 122, 500),
         MEASUREMENT_VALUE_MERGED = c(100, 102, 150, 110, 112, 120, 122, 500),
@@ -23,14 +22,14 @@ mock_conn <- function() {
         stringsAsFactors = FALSE
     )
 
-
     drug_events <- data.frame(
         FINNGENID = c("FG1", "FG2", "FG3"),
         APPROX_EVENT_DAY = as.Date(c("2015-07-17", "2015-07-18", "2015-07-19")),
         ATC = c("C10AA", "C10AA", "C10AA"),
         EVENT_AGE = c(21.0, 20.0, 35),
         VNR = c("123", "456", "789"),
-        MERGED_SOURCE = c("PURCH", "PURCH", "PURCH")
+        MERGED_SOURCE = c("PURCH", "PURCH", "PURCH"),
+        MEDICATION_QUANTITY = c(1, 1, 1)
     )
 
     cov <- data.frame(
@@ -43,7 +42,7 @@ mock_conn <- function() {
     return(fg_data_connection(dat))
 }
 
-test_that("get_measurements_before_drug works as a standalone function", {
+    test_that("get_measurements_before_drug works as a standalone function", {
     conn <- mock_conn()
 
     # Test with default 3 months
@@ -115,7 +114,8 @@ test_that("outlier removal works correctly", {
         lablist = "3001308",
         druglist = "C10AA",
         months_before = 3,
-        remove_outliers_sd = 1
+        remove_outliers_sd = 1,
+        use_only_reimbursement = TRUE
     )
     # The value 500 from FG4 should be removed
     expect_false(500 %in% measurements_sd$VALUE)
@@ -126,7 +126,8 @@ test_that("outlier removal works correctly", {
         lablist = "3001308",
         druglist = "C10AA",
         months_before = 3,
-        winsorize_pct = 0.1 # 10% winsorization on each tail
+        winsorize_pct = 0.1, # 10% winsorization on each tail,
+        use_only_reimbursement = TRUE
     )
     # The value 500 should be capped at the 90th percentile
     expect_true(max(measurements_win$VALUE) < 500)
@@ -177,7 +178,8 @@ test_that("get_measurements_before_drug calculates time_to_drug correctly", {
             EVENT_AGE = c(50.5, 60.0), # Drug purchase ages
             ATC = "C10AA",
             MERGED_SOURCE = "PURCH",
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            MEDICATION_QUANTITY = c(1, 1)
         )
 
 
@@ -188,7 +190,7 @@ test_that("get_measurements_before_drug calculates time_to_drug correctly", {
         conn,
         lablist = "3001308",
         druglist = "C10AA",
-        months_before = 12 # 1 year = 1.0 years
+        months_before = 12, # 1 year = 1.0 years
     )
 
     # Verify time_to_drug calculations: time_to_drug = first_drug_age - EVENT_AGE
@@ -249,7 +251,8 @@ test_that("get_measurements_before_drug filters by time window correctly", {
             EVENT_AGE = 50.5, # Drug purchase age
             ATC = "C10AA",
             MERGED_SOURCE = "PURCH",
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            MEDICATION_QUANTITY = c(1)
         )
     )
 
@@ -316,7 +319,8 @@ test_that("get_measurements_before_drug returns expected measurement values", {
             EVENT_AGE = c(50.5, 60.0),
             ATC = "C10AA",
             MERGED_SOURCE = "PURCH",
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            MEDICATION_QUANTITY = c(1, 1)
         )
     )
 
@@ -393,7 +397,8 @@ test_that("get_measurements_before_drug handles edge cases correctly", {
             EVENT_AGE = 50.5, # Drug purchase age
             ATC = "C10AA",
             MERGED_SOURCE = "PURCH",
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            MEDICATION_QUANTITY = c(1)
 
     ))
     class(conn_exact) <- "fg_data_connection"
@@ -434,7 +439,8 @@ test_that("get_measurements_before_drug handles edge cases correctly", {
             EVENT_AGE = 50.5, # Drug purchase age
             ATC = "C10AA",
             MERGED_SOURCE = "PURCH",
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            MEDICATION_QUANTITY = c(1)
         )   
     )
     class(conn_empty) <- "fg_data_connection"
@@ -442,7 +448,7 @@ test_that("get_measurements_before_drug handles edge cases correctly", {
         conn_empty,
         lablist = "3001308",
         druglist = "C10AA",
-        months_before = 6 # 0.5 years
+        months_before = 6,# 0.5 years
     )
 
     # Both measurements have time_to_drug < 0.5, so should be excluded
@@ -470,7 +476,8 @@ test_that("get_measurements_before_drug handles edge cases correctly", {
             EVENT_AGE = numeric(0),
             ATC = character(0),
             MERGED_SOURCE = character(0),
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            MEDICATION_QUANTITY = numeric(0)
         )   
     )
     class(conn_unexposed) <- "fg_data_connection"
@@ -510,7 +517,8 @@ test_that("get_measurements_before_drug outlier removal preserves expected value
             EVENT_AGE = c(50.5, 60.0),
             ATC = "C10AA",
             MERGED_SOURCE = "PURCH",
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            MEDICATION_QUANTITY = c(1, 1)
         )
 
     )
@@ -536,7 +544,7 @@ test_that("get_measurements_before_drug outlier removal preserves expected value
         lablist = "3001308",
         druglist = "C10AA",
         months_before = 12,
-        winsorize_pct = 0.1 # 10% winsorization
+        winsorize_pct = 0.1, # 10% winsorization on each tail
     )
 
     # The value 500 should be capped, not removed

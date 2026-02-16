@@ -79,18 +79,18 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
 
     inds_in_analysis <- nrow(responses )
 
-    n_range_before <- quant_text(responses$n_before)
-    n_range_after <- quant_text(responses$n_before)
+    n_range_baseline <- quant_text(responses$n_baseline)    
+    n_range_followup <- quant_text(responses$n_followup)
 
-    range_baseline_age <- quant_text(responses$n_before)
+    range_baseline_age <- quant_text(responses$n_baseline)
 
-    n_no_pre <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_before == 0)
-    n_no_pos <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_after == 0)
+    n_no_pre <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_baseline == 0)
+    n_no_pos <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_followup == 0)
 
     plot(ggtexttable(data.frame(
         "Group" = c("labs", "drugs", "in analysis", "no_pre_value", "no_post_value"),
         "N" = c(inds_with_lab, inds_with_drugs, inds_in_analysis, nrow(n_no_pre), nrow(n_no_pos)),
-        "N events" = c(n_lab_meas, n_drugs_meas, inds_in_analysis, sum(n_no_pre$n_after), sum(n_no_pos$n_before))
+        "N events" = c(n_lab_meas, n_drugs_meas, inds_in_analysis, sum(n_no_pre$n_followup), sum(n_no_pos$n_baseline))
     ), rows = NULL))
 
     per_drug <- responses %>%
@@ -127,9 +127,9 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
         arrange(desc(.data$n_purch))))
 
 
-    begin <- ceiling(max(min(-labs$time_to_drug, na.rm = TRUE), drug_response$lab_response_period$before_period[1]))
-    end <- ceiling(min(max(-labs$time_to_drug, na.rm = TRUE), drug_response$lab_response_period$after_period[2]))
-    labs$bin <- cut(-labs$time_to_drug,
+    begin <- ceiling(max(min(-labs$time_to_first_drug, na.rm = TRUE), drug_response$lab_response_period$before_period[1]))
+    end <- ceiling(min(max(-labs$time_to_first_drug, na.rm = TRUE), drug_response$lab_response_period$after_period[2]))
+    labs$bin <- cut(-labs$time_to_first_drug,
         breaks = seq(begin, end, by = .25),
         include.lowest = TRUE
     )
@@ -200,17 +200,17 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
 
 
 
-    fit <- summary(lm(after ~ before, data = responses))
+    fit <- summary(lm(followup ~ baseline, data = responses))
 
-    slope <- format(fit$coefficients["before", "Estimate"], digits = 2)
+    slope <- format(fit$coefficients["baseline", "Estimate"], digits = 2)
     r2 <- format(fit$r.squared, digits = 2)
-    p <- format(fit$coefficients["before", "Pr(>|t|)"], digits = 2, scientific = TRUE)
+    p <- format(fit$coefficients["baseline", "Pr(>|t|)"], digits = 2, scientific = TRUE)
 
-    suppressWarnings(print(ggplot(responses, aes(x = .data$before, y = .data$after)) +
+    suppressWarnings(print(ggplot(responses, aes(x = .data$baseline, y = .data$followup)) +
         geom_point() +
         geom_smooth(method = "lm") +
         geom_abline(slope = 1) +
-        ggtitle(paste0("Before vs. after values. Slope: ", slope, " R2: ", r2, " p: ", p))))
+        ggtitle(paste0("Baseline vs. followup values. Slope: ", slope, " R2: ", r2, " p: ", p))))
 
     dev.off()
 
@@ -218,11 +218,11 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
 }
 
 
-#' @title Plot Distribution of Lab Values Before and After Drug Use
+#' @title Plot Distribution of Lab Values at Baseline and Followup
 #' @description Creates a violin plot comparing the distribution of lab values
-#' before and after the first drug purchase, faceted by drug type.
-#' The plot uses consistent ordering with "Before" always on the left (teal)
-#' and "After" always on the right (gold).
+#' at baseline and followup relative to the first drug purchase, faceted by drug type.
+#' The plot uses consistent ordering with "Baseline" always on the left (teal)
+#' and "Followup" always on the right (gold).
 #' @param drug_response A `drug.response` object.
 #' @param remove_outliers A logical indicating whether to remove outliers
 #' using the 1.5 * IQR rule. Defaults to `FALSE`.
@@ -246,8 +246,8 @@ plot_lab_value_distribution <- function(drug_response, remove_outliers = FALSE) 
   lab_data_periods <- drug_response$all_measurements %>%
     filter(!is.na(.data$first_drug_age) & !is.na(.data$VALUE)) %>%
     mutate(period = case_when(
-      between(.data$time_to_drug, -before_period_def[2], -before_period_def[1]) ~ "Before",
-      between(.data$time_to_drug, -after_period_def[2], -after_period_def[1]) ~ "After",
+      between(.data$time_to_first_drug, -before_period_def[2], -before_period_def[1]) ~ "Baseline",
+      between(.data$time_to_first_drug, -after_period_def[2], -after_period_def[1]) ~ "Followup",
       TRUE ~ NA_character_
     )) %>%
     filter(!is.na(.data$period))
@@ -269,9 +269,9 @@ plot_lab_value_distribution <- function(drug_response, remove_outliers = FALSE) 
       ungroup()
   }
 
-  # Ensure consistent ordering: Before on left, After on right
+  # Ensure consistent ordering: Baseline on left, Followup on right
   plot_data <- plot_data %>%
-    mutate(period = factor(.data$period, levels = c("Before", "After")))
+    mutate(period = factor(.data$period, levels = c("Baseline", "Followup")))
 
   # Generate violin plot with ggpubr
   p <- ggpubr::ggviolin(plot_data,
@@ -286,7 +286,7 @@ plot_lab_value_distribution <- function(drug_response, remove_outliers = FALSE) 
     ggpubr::stat_compare_means(method = "t.test",
                                label.y.npc = 0.9) +
     labs(
-      title = "Distribution of Lab Values Before and After First Drug Purchase",
+      title = "Distribution of Lab Values at Baseline and Followup",
       x = "Period Relative to Drug Purchase",
       y = "Harmonised Measurement Value"
     ) +

@@ -6,13 +6,16 @@
 \usage{
 generate_response_summary(
   lab_measurements,
+  drug_purchases,
   before_period,
   after_period,
   summary_function = median
 )
 }
 \arguments{
-\item{lab_measurements}{data frame with lab measurements}
+\item{lab_measurements}{data frame with lab measurements and indicator of time to first drug}
+
+\item{drug_purchases}{data frame with drug purchases and indicator of time to first drug}
 
 \item{before_period}{vector with two elements, start and end of the before period}
 

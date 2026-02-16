@@ -27,7 +27,8 @@ test_that("create_drug_response works with external_labs parameter", {
         ATC = c("A01", "A02", "A02"),
         EVENT_AGE = c(21.0, 20.0, 35),
         VNR = c("123", "456", "789"),
-        MERGED_SOURCE = c("PURCH", "PURCH", "PURCH")
+        MERGED_SOURCE = c("PURCH", "PURCH", "PURCH"),
+        MEDICATION_QUANTITY = c(1, 1, 1)
     )
 
     phenos <- data.frame(
@@ -56,8 +57,8 @@ test_that("create_drug_response works with external_labs parameter", {
     filtres <- result$responses %>% filter(!is.na(response))
     expect_equal(nrow(filtres), 2)
     expect_equal(filtres$FINNGENID, c("FG1", "FG2"))
-    expect_equal(filtres$before, c(16.6, 9.5))
-    expect_equal(filtres$after, c(25, 40))
+    expect_equal(filtres$baseline, c(16.6, 9.5))
+    expect_equal(filtres$followup, c(25, 40))
     expect_equal(filtres$response, c(8.4, 30.5))
 })
 
@@ -114,7 +115,8 @@ test_that("get_measurements_before_drug works with external_labs parameter", {
         ATC = c("C10AA", "C10AA"),
         EVENT_AGE = c(50.0, 50.0),
         VNR = c("123", "456"),
-        MERGED_SOURCE = c("PURCH", "PURCH")
+        MERGED_SOURCE = c("PURCH", "PURCH"),
+        MEDICATION_QUANTITY = c(1, 1)
     )
 
     phenos <- data.frame(
@@ -230,7 +232,8 @@ test_that("external_labs works with BLUP analysis via calculate_blup_slopes", {
         ATC = "C10AA",
         EVENT_AGE = 50.0,
         VNR = "123",
-        MERGED_SOURCE = "PURCH"
+        MERGED_SOURCE = "PURCH",
+        MEDICATION_QUANTITY = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
     )
 
     phenos <- data.frame(
@@ -290,7 +293,8 @@ test_that("external_labs filters by lablist correctly", {
         ATC = c("A01"),
         EVENT_AGE = c(21.0),
         VNR = c("123"),
-        MERGED_SOURCE = c("PURCH")
+        MERGED_SOURCE = c("PURCH"),
+        MEDICATION_QUANTITY = c(1)
     )
 
     phenos <- data.frame(
@@ -338,7 +342,8 @@ test_that("external_labs with finngen_ids filtering works correctly", {
         ATC = c("A01", "A01", "A01"),
         EVENT_AGE = c(21.0, 20.0, 19.0),
         VNR = c("123", "456", "789"),
-        MERGED_SOURCE = c("PURCH", "PURCH", "PURCH")
+        MERGED_SOURCE = c("PURCH", "PURCH", "PURCH"),
+        MEDICATION_QUANTITY = c(1, 1, 1)
     )
 
     phenos <- data.frame(
