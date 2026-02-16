@@ -291,8 +291,7 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
     # Check if DDDPerPack column exists before summarizing
     has_ddd_column <- "DDDPerPack" %in% colnames(drug_purchases)
     has_n_packs_column <- "N_PACKS" %in% colnames(drug_purchases)
-    
-    drug_purchases$N_PACKS_imputed <- if_else(has_n_packs_column, drug_purchases$N_PACKS, 1)
+    drug_purchases$N_PACKS_imputed <- ifelse(has_n_packs_column, drug_purchases$N_PACKS, 1)
 
     if (has_ddd_column) {
         drug_purch_summaries <- drug_purchases %>%
