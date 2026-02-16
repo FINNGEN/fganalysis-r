@@ -232,10 +232,14 @@ create_drug_response <- function(conn, lablist, druglist,
 #' @param summary_function function to summarize the lab measurements (default is median)
 #' @return data frame with response summary
 #' @export
-generate_response_summary <- function(lab_measurements, drug_purchases, before_period, after_period, summary_function = median) {
+generate_response_summary <- function(lab_measurements, drug_purchases=NULL, before_period, after_period, summary_function = median) {
 
     assertNumeric(before_period, len = 2, any.missing = FALSE)
     assertNumeric(after_period, len = 2, any.missing = FALSE)
+
+    if (is.null(drug_purchases)) {
+        stop("`drug_purchases` must be provided as the second argument to generate_response_summary(). If you are calling this function using an older argument order, please update your code to include a `drug_purchases` data frame.", call. = FALSE)
+    }
 
     "time_to_first_drug" %in% colnames(drug_purchases) || stop("drug_purchases must contain time_to_first_drug column indicating time relative to drug purchase")
     "lab_period" %in% colnames(lab_measurements) || stop("lab_measurements must contain lab_period column")
@@ -251,6 +255,12 @@ generate_response_summary <- function(lab_measurements, drug_purchases, before_p
     all(unique(lab_measurements$lab_period) %in% c("Before_Baseline", "Baseline", "Followup", "After_Followup", "Between_Baseline_and_Followup", NA)) || stop("lab_period column in lab_measurements must contain only 'Before_Baseline', 'Baseline', 'Followup', 'Between_Baseline_and_Followup', 'After_Followup', or NA values")
     all(unique(drug_purchases$purchase_period) %in% c("Before_Baseline", "Baseline", "Followup", "After_Followup","Between_Baseline_and_Followup", NA)) || stop("purchase_period column in drug_purchases must contain only 'Before_Baseline', 'Baseline', 'Followup', 'After_Followup', or NA values")
 
+    allowed_lab_periods <- c("Before_Baseline", "Baseline", "Followup", "After_Followup", "Between_Baseline_and_Followup")
+    invalid_lab_periods <- setdiff(stats::na.omit(unique(lab_measurements$lab_period)), allowed_lab_periods)
+    length(invalid_lab_periods) == 0 || stop("lab_period column in lab_measurements must contain only 'Before_Baseline', 'Baseline', 'Followup', 'Between_Baseline_and_Followup', 'After_Followup', or NA values")
+    allowed_purchase_periods <- c("Before_Baseline", "Baseline", "Followup", "After_Followup", "Between_Baseline_and_Followup")
+    invalid_purchase_periods <- setdiff(stats::na.omit(unique(drug_purchases$purchase_period)), allowed_purchase_periods)
+    length(invalid_purchase_periods) == 0 || stop("purchase_period column in drug_purchases must contain only 'Before_Baseline', 'Baseline', 'Followup', 'After_Followup', or NA values")
 
 
     lab_response <- lab_measurements %>%
@@ -277,12 +287,13 @@ generate_response_summary <- function(lab_measurements, drug_purchases, before_p
             response_percent = .data$response/ .data$baseline * 100
             
         )
-    head(drug_purchases)
     
     # Check if DDDPerPack column exists before summarizing
     has_ddd_column <- "DDDPerPack" %in% colnames(drug_purchases)
     has_n_packs_column <- "N_PACKS" %in% colnames(drug_purchases)
     
+    drug_purchases$N_PACKS_imputed <- if_else(has_n_packs_column, drug_purchases$N_PACKS, 1)
+
     if (has_ddd_column) {
         drug_purch_summaries <- drug_purchases %>%
             dplyr::filter(!is.na(.data$purchase_period)) %>%
@@ -291,9 +302,7 @@ generate_response_summary <- function(lab_measurements, drug_purchases, before_p
                 n_purchases_baseline = sum(.data$purchase_period == "Baseline"),
                 n_purchases_followup = sum(.data$purchase_period == "Followup"),
                 ### Calculate total DDDs purchased in followup period. assume N_PACK is 1 if missing
-                total_ddd_followup = sum(.data$DDDPerPack[.data$purchase_period == "Followup"] * 
-                                        if_else(has_n_packs_column & !is.na(.data$N_PACKS[.data$purchase_period == "Followup"]), 
-                                                .data$N_PACKS[.data$purchase_period == "Followup"], 1), 
+                total_ddd_followup = sum(.data$DDDPerPack[.data$purchase_period == "Followup"] * .data$N_PACKS_imputed, 
                                         na.rm = TRUE),
                 n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
             )

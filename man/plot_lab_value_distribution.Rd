@@ -2,7 +2,7 @@
 % Please edit documentation in R/visualization.R
 \name{plot_lab_value_distribution}
 \alias{plot_lab_value_distribution}
-\title{Plot Distribution of Lab Values Before and After Drug Use}
+\title{Plot Distribution of Lab Values at Baseline and Followup}
 \usage{
 plot_lab_value_distribution(drug_response, remove_outliers = FALSE)
 }
@@ -17,7 +17,7 @@ A `ggplot` object with consistent ordering and ggpubr color palette.
 }
 \description{
 Creates a violin plot comparing the distribution of lab values
-before and after the first drug purchase, faceted by drug type.
-The plot uses consistent ordering with "Before" always on the left (teal)
-and "After" always on the right (gold).
+at baseline and followup relative to the first drug purchase, faceted by drug type.
+The plot uses consistent ordering with "Baseline" always on the left (teal)
+and "Followup" always on the right (gold).
 }

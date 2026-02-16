@@ -448,7 +448,7 @@ test_that("get_measurements_before_drug handles edge cases correctly", {
         conn_empty,
         lablist = "3001308",
         druglist = "C10AA",
-        months_before = 6,# 0.5 years
+        months_before = 6# 0.5 years
     )
 
     # Both measurements have time_to_drug < 0.5, so should be excluded
@@ -544,7 +544,7 @@ test_that("get_measurements_before_drug outlier removal preserves expected value
         lablist = "3001308",
         druglist = "C10AA",
         months_before = 12,
-        winsorize_pct = 0.1, # 10% winsorization on each tail
+        winsorize_pct = 0.1 # 10% winsorization on each tail
     )
 
     # The value 500 should be capped, not removed

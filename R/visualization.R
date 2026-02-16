@@ -82,7 +82,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
     n_range_baseline <- quant_text(responses$n_baseline)    
     n_range_followup <- quant_text(responses$n_followup)
 
-    range_baseline_age <- quant_text(responses$n_baseline)
+    range_baseline_age <- quant_text(responses$baseline_age)
 
     n_no_pre <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_baseline == 0)
     n_no_pos <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_followup == 0)
@@ -291,7 +291,7 @@ plot_lab_value_distribution <- function(drug_response, remove_outliers = FALSE) 
       y = "Harmonised Measurement Value"
     ) +
     theme_minimal() +
-    facet_wrap(~.data$drug_label, scales = "free_y") +
+    facet_wrap(~.data$first_drug, scales = "free_y") +
     theme(legend.position = "bottom")
 
   return(p)
