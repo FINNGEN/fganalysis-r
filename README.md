@@ -105,12 +105,6 @@ conn <- connect_fgdata("/finngen/library-green/code/fganalysis/config/db_config_
 
 ```
 
-Once installed, load the package into your R session:
-
-```R
-library(fganalysis)
-```
-
 ## Data Access
 
 The package accesses data through a centralized connection object. The connection is configured via a JSON file, which specifies the paths to different datasets.
