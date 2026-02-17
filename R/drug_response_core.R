@@ -287,8 +287,7 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
             first_drug_ddd_per_pack = if ("first_drug_ddd_per_pack" %in% names(.)) first(.data$first_drug_ddd_per_pack) else NA,
             response = ifelse(!is.na(.data$followup) & !is.na(.data$baseline), .data$followup - .data$baseline, NA),
             response_percent = .data$response/ .data$baseline * 100
-            
-        )
+        ) %>% select(-followup_idx, -baseline_idx)
     
     # Check if DDDPerPack column exists before summarizing
     has_ddd_column <- "DDDPerPack" %in% colnames(drug_purchases)
@@ -317,7 +316,7 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
                 total_ddd_followup = sum(.data$DDDPerPack[followup_idx[[1]]] * .data$N_PACKS_imputed[followup_idx[[1]]], 
                                         na.rm = TRUE),
                 n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
-            )
+            ) %>% select(-followup_idx, -baseline_idx)
     } else {
         drug_purch_summaries <- drug_purchases %>%
             dplyr::filter(!is.na(.data$purchase_period)) %>%
