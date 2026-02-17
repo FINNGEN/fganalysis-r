@@ -267,12 +267,14 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
         dplyr::filter(!is.na(.data$lab_period) & !is.na(.data$VALUE)) %>%
         dplyr::group_by(.data$FINNGENID) %>%
         dplyr::summarize(
-            n_baseline = length(.data$VALUE[.data$lab_period == "Baseline"]),
-            n_followup = length(.data$VALUE[.data$lab_period == "Followup"]),
-            baseline = summary_function(.data$VALUE[.data$lab_period == "Baseline"], na.rm = TRUE),
-            followup = summary_function(.data$VALUE[.data$lab_period == "Followup"], na.rm = TRUE),
-            baseline = ifelse(.data$n_baseline>0,summary_function(.data$VALUE[.data$lab_period == "Baseline"], na.rm = TRUE),NA),
-            followup = ifelse(.data$n_followup>0,summary_function(.data$VALUE[.data$lab_period == "Followup"], na.rm = TRUE),NA),
+            baseline_idx = list(which(.data$lab_period == "Baseline")),
+            followup_idx = list(which(.data$lab_period == "Followup")),
+            n_baseline = length(baseline_idx[[1]]),
+            n_followup = length(followup_idx[[1]]),
+            baseline = summary_function(.data$VALUE[baseline_idx[[1]]], na.rm = TRUE),
+            followup = summary_function(.data$VALUE[followup_idx[[1]]], na.rm = TRUE),
+            baseline = ifelse(.data$n_baseline>0,summary_function(.data$VALUE[baseline_idx[[1]]], na.rm = TRUE),NA),
+            followup = ifelse(.data$n_followup>0,summary_function(.data$VALUE[followup_idx[[1]]], na.rm = TRUE),NA),
             baseline_age = first(.data$first_drug_age),
             baseline_date = first(.data$first_drug_date),
             first_drug = first(.data$first_drug),
@@ -291,17 +293,28 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
     # Check if DDDPerPack column exists before summarizing
     has_ddd_column <- "DDDPerPack" %in% colnames(drug_purchases)
     has_n_packs_column <- "N_PACKS" %in% colnames(drug_purchases)
-    drug_purchases$N_PACKS_imputed <- ifelse(has_n_packs_column, drug_purchases$N_PACKS, 1)
+    # Impute N_PACKS: use actual value if present and not NA, otherwise default to 1
+    if (has_n_packs_column) {
+        drug_purchases$N_PACKS_imputed <- ifelse(!is.na(drug_purchases$N_PACKS), 
+                                                  drug_purchases$N_PACKS, 1)
+    } else {
+        drug_purchases$N_PACKS_imputed <- 1
+    }
+
+    print("Summarizing drug purchases per individual in response periods...")
+    start_time <- Sys.time()
 
     if (has_ddd_column) {
         drug_purch_summaries <- drug_purchases %>%
             dplyr::filter(!is.na(.data$purchase_period)) %>%
             dplyr::group_by(.data$FINNGENID) %>%
             dplyr::summarize(
-                n_purchases_baseline = sum(.data$purchase_period == "Baseline"),
-                n_purchases_followup = sum(.data$purchase_period == "Followup"),
+                baseline_idx = list(which(.data$purchase_period == "Baseline")),
+                followup_idx = list(which(.data$purchase_period == "Followup")),
+                n_purchases_baseline = length(baseline_idx[[1]]),
+                n_purchases_followup = length(followup_idx[[1]]),
                 ### Calculate total DDDs purchased in followup period. assume N_PACK is 1 if missing
-                total_ddd_followup = sum(.data$DDDPerPack[.data$purchase_period == "Followup"] * .data$N_PACKS_imputed, 
+                total_ddd_followup = sum(.data$DDDPerPack[followup_idx[[1]]] * .data$N_PACKS_imputed[followup_idx[[1]]], 
                                         na.rm = TRUE),
                 n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
             )
@@ -316,9 +329,11 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
                 n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
             )
     }
+
     lab_response <- lab_response %>%
         dplyr::left_join(drug_purch_summaries, by = "FINNGENID")
-
+        
+    print(paste("Finished generating response summary. Time taken:", round(difftime(Sys.time(), start_time, units = "secs"), 2), "seconds"))
     lab_response
 }
 
