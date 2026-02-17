@@ -290,6 +290,7 @@ The package follows the **single responsibility principle** for covariate handli
 
 ### Analysis
 - **`create_drug_response(conn, lablist, druglist, before_period, after_period, finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL)`**: The main analysis function. It calculates the drug response based on lab value changes before and after the first drug purchase. The `remove_outliers_sd` parameter can be used to remove outliers (specify number of SDs from mean, e.g., 1-6). The `external_labs` parameter allows you to supply your own lab measurements instead of using Kanta lab values (see "Using External Lab Values" section below). Response is drug.response object containing all data related to the analysis and results.
+   The `responses` data frame within the object contains the summarized response data for each individual, including baseline and followup lab values, drug purchase summaries, and calculated response. The `all_measurements` and `all_drug_purchases` data frames contain the raw lab measurements and drug purchase data used in the analysis, respectively. 
   
 
 
