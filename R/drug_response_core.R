@@ -86,7 +86,7 @@ drug.response <- function(responses, lab_measurements,
 #' @param finngen_ids Optional character vector of FINNGENIDs to restrict analysis
 #' @param remove_outliers_sd Optional numeric value (1-6) to remove outliers based on standard deviations
 #' @param external_labs Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE
-#' @return drug.response object
+#' @return drug.response object. The `responses` data frame within the object contains the summarized response data for each individual, including baseline and followup lab values, drug purchase summaries, and calculated response. The `all_measurements` and `all_drug_purchases` data frames contain the raw lab measurements and drug purchase data used in the analysis, respectively.
 #' @export
 create_drug_response <- function(conn, lablist, druglist,
                                  before_period, after_period, summary_function=median, filter_min_max = c(-Inf, Inf),
