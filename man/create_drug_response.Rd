@@ -10,7 +10,7 @@ create_drug_response(
   druglist,
   before_period,
   after_period,
-  summary_function = median,
+  summary_functions = list(summary_median, summary_median),
   filter_min_max = c(-Inf, Inf),
   use_lab_free_text_values = TRUE,
   use_only_reimbursement_drugs = FALSE,
@@ -30,7 +30,9 @@ create_drug_response(
 
 \item{after_period}{A numeric vector of length 2 defining the after period (e.g., c(0.1, 1) for 0.1 to 1 year after drug)}
 
-\item{summary_function}{A function to summarize the lab measurements (default is median)}
+\item{summary_functions}{A list of two functions to summarize the lab measurements (default is list(summary_median, summary_median)). The first function is used for baseline summary and the second for followup summary.
+The function accepts a data frame of lab measurements for an individual and should return a single numeric summary value. For example, you could provide a custom function that calculates the mean, median, or closest value to drug initiation.
+Use summary_closest_to_drug function for selecting the lab value closest to drug initiation.}
 
 \item{filter_min_max}{A numeric vector of length 2 defining min and max lab values to include (default: c(-Inf, Inf))}
 
@@ -45,7 +47,7 @@ create_drug_response(
 \item{external_labs}{Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE}
 }
 \value{
-drug.response object
+drug.response object. The `responses` data frame within the object contains the summarized response data for each individual, including baseline and followup lab values, drug purchase summaries, and calculated response. The `all_measurements` and `all_drug_purchases` data frames contain the raw lab measurements and drug purchase data used in the analysis, respectively.
 }
 \description{
 Create drug response object
