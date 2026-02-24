@@ -3,7 +3,7 @@
 #' @importFrom dplyr bind_rows select mutate filter left_join group_by summarise
 #' @importFrom utils head
 #' @importFrom rlang .data
-#' @importFrom checkmate assertClass assertNumeric assertCharacter assertLogical assertNumber
+#' @importFrom checkmate assertClass assertNumeric assertCharacter assertLogical assertNumber checkList
 NULL
 
 # Declare global variables to avoid R CMD check notes
@@ -56,7 +56,6 @@ validate_external_labs <- function(external_labs) {
 #' @param after_period vector with two elements, start and end of the after period # nolint: line_length_linter.
 #' @return object of class drug.response
 #' @export
-
 drug.response <- function(responses, lab_measurements,
                           drug_purchases,
                           before_period, after_period) {
@@ -73,13 +72,59 @@ drug.response <- function(responses, lab_measurements,
     obj
 }
 
+
+
+#' @title Summary function to get lab value closest to drug initiation, to be used in create_drug_response call as summary_functions parameter
+#' @param lab_values data frame of lab measurements for an individual
+#' @export
+summary_closest_to_drug <- function(lab_values) {
+    lab_values %>%
+        mutate(abs_time_to_drug = abs(.data$time_to_first_drug)) %>%
+        arrange(.data$abs_time_to_drug) %>%
+        slice_head(n = 1) %>%
+        pull(.data$VALUE)
+}
+
+
+#' @title Summary function to get median lab value of responses, to be used in create_drug_response call as summary_functions parameter
+#' @param lab_values data frame of lab measurements for an individual
+#' @export
+summary_median <- function(lab_values) {
+    ret <- median(lab_values$VALUE, na.rm = TRUE)
+    ret
+}
+
+#' @title Summary function to get minimum lab value of responses, to be used in create_drug_response call as summary_functions parameter
+#' @param lab_values data frame of lab measurements for an individual
+#' @export
+summary_min <- function(lab_values) {
+    ret <- min(lab_values$VALUE, na.rm = TRUE)
+    ret
+}
+
+#' @title Internal helper function to apply summary function to lab measurements for a given period and check results
+#' @param lab_measurements data frame of lab measurements for an individual
+#' @param summary_function function to summarize lab measurements (e.g., summary_median, summary_closest_to_drug)
+.apply_summary <- function(lab_measurements, summary_function) {
+    res <- summary_function(lab_measurements)
+
+    if (!is.numeric(res) || length(res) != 1) {
+        stop(paste0("Summary function must return a single numeric value. Got: ", res))
+    }
+    
+    res
+}
+
+
 #' @title Create drug response object
 #' @param conn A `fg_data_connection` object containing the data sources
 #' @param lablist A character vector of OMOP concept IDs for the labs of interest
 #' @param druglist A character vector of ATC drug codes
 #' @param before_period A numeric vector of length 2 defining the before period (e.g., c(-1, 0) for 1 year to 0 before drug)
 #' @param after_period A numeric vector of length 2 defining the after period (e.g., c(0.1, 1) for 0.1 to 1 year after drug)
-#' @param summary_function A function to summarize the lab measurements (default is median)
+#' @param summary_functions A list of two functions to summarize the lab measurements (default is list(summary_median, summary_median)). The first function is used for baseline summary and the second for followup summary.
+#' The function accepts a data frame of lab measurements for an individual and should return a single numeric summary value. For example, you could provide a custom function that calculates the mean, median, or closest value to drug initiation.
+#' Use summary_closest_to_drug function for selecting the lab value closest to drug initiation.
 #' @param filter_min_max A numeric vector of length 2 defining min and max lab values to include (default: c(-Inf, Inf))
 #' @param use_lab_free_text_values Logical, if False, Dont include lab measurements from free text value column (default: TRUE)
 #' @param use_only_reimbursement_drugs Logical, if TRUE, use only reimbursement data (default FALSE) and do not include delivery data from KANTA
@@ -89,12 +134,16 @@ drug.response <- function(responses, lab_measurements,
 #' @return drug.response object. The `responses` data frame within the object contains the summarized response data for each individual, including baseline and followup lab values, drug purchase summaries, and calculated response. The `all_measurements` and `all_drug_purchases` data frames contain the raw lab measurements and drug purchase data used in the analysis, respectively.
 #' @export
 create_drug_response <- function(conn, lablist, druglist,
-                                 before_period, after_period, summary_function=median, filter_min_max = c(-Inf, Inf),
+                                 before_period, after_period, summary_functions=list(summary_median, summary_median), filter_min_max = c(-Inf, Inf),
                                  use_lab_free_text_values = TRUE, use_only_reimbursement_drugs = FALSE,
                                  finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL) {
     # Validate all input parameters immediately
     if (!inherits(conn, "fg_data_connection")) {
         stop("conn must be an fg_data_connection object")
+    }
+
+    if(!checkList(summary_functions, types = "function", len = 2)) {
+        stop("summary_functions must be a list of two functions: the first for baseline summary and the second for followup summary")
     }
 
     assertCharacter(lablist, any.missing = FALSE)
@@ -192,7 +241,7 @@ create_drug_response <- function(conn, lablist, druglist,
     # We need to flip the signs when matching
     lab_measurements <- lab_measurements %>% mutate(lab_period = case_when(
         .data$time_to_first_drug > -before_period[1] ~ "Before_Baseline",
-        dplyr::between(.data$time_to_first_drug, -before_period[2], -before_period[1]) ~ "Baseline",
+        .data$time_to_first_drug >= -before_period[2] & .data$time_to_first_drug <= -before_period[1] ~ "Baseline",
         dplyr::between(.data$time_to_first_drug, -after_period[2], -after_period[1]) ~ "Followup",
         dplyr::between(.data$time_to_first_drug, -after_period[1], 0) ~ "Between_Baseline_and_Followup",
         .data$time_to_first_drug < -after_period[2] ~ "After_Followup",
@@ -202,18 +251,16 @@ create_drug_response <- function(conn, lablist, druglist,
     drug_purchases <- drug_purchases %>%
         mutate(purchase_period = case_when(
             .data$time_to_first_drug > -before_period[1] ~ "Before_Baseline",
-            dplyr::between(.data$time_to_first_drug, -before_period[2], -before_period[1]) ~ "Baseline",
+            .data$time_to_first_drug >= -before_period[2] & .data$time_to_first_drug <= -before_period[1] ~ "Baseline",
             dplyr::between(.data$time_to_first_drug, -after_period[2], -after_period[1]) ~ "Followup",
             dplyr::between(.data$time_to_first_drug, -after_period[1], 0) ~ "Between_Baseline_and_Followup",
             .data$time_to_first_drug < -after_period[2] ~ "After_Followup",
             TRUE ~ NA_character_)
         )
 
-
-   
     print("generating response summary...")
-    lab_response <- generate_response_summary(lab_measurements, drug_purchases = drug_purchases, before_period = before_period, 
-    after_period, summary_function=summary_function)
+    lab_response <- generate_response_summary(lab_measurements , drug_purchases = drug_purchases, before_period = before_period, 
+    after_period = after_period, summary_functions = summary_functions)
     cat(paste0("Number of individuals with response data: ", nrow(lab_response %>% filter(!is.na(.data$response)))))
 
     drug.response(
@@ -223,16 +270,18 @@ create_drug_response <- function(conn, lablist, druglist,
     )
 }
 
-
 #' @title Generate response summary
 #' @param lab_measurements data frame with lab measurements and indicator of time to first drug
 #' @param drug_purchases data frame with drug purchases and indicator of time to first drug
 #' @param before_period vector with two elements, start and end of the before period
 #' @param after_period vector with two elements, start and end of the after period
-#' @param summary_function function to summarize the lab measurements (default is median)
+#' @param summary_functions A list of two functions to summarize the lab measurements (default is list(summary_median, summary_median)). The first function is used for baseline summary and the second for followup summary.
 #' @return data frame with response summary
 #' @export
-generate_response_summary <- function(lab_measurements, drug_purchases=NULL, before_period, after_period, summary_function = median) {
+generate_response_summary <- function(lab_measurements, drug_purchases=NULL, before_period, after_period, summary_functions=list(summary_median, summary_median)) {
+     if (is.null(drug_purchases)) {
+        stop("`drug_purchases` must be provided as the second argument to generate_response_summary(). If you are calling this function using an older argument order, please update your code to include a `drug_purchases` data frame.", call. = FALSE)
+    }
 
     assertNumeric(before_period, len = 2, any.missing = FALSE)
     assertNumeric(after_period, len = 2, any.missing = FALSE)
@@ -263,6 +312,9 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
     length(invalid_purchase_periods) == 0 || stop("purchase_period column in drug_purchases must contain only 'Before_Baseline', 'Baseline', 'Followup', 'After_Followup', or NA values")
 
 
+    summary_baseline <- summary_functions[[1]]
+    summary_followup <- summary_functions[[2]]
+
     lab_response <- lab_measurements %>%
         dplyr::filter(!is.na(.data$lab_period) & !is.na(.data$VALUE)) %>%
         dplyr::group_by(.data$FINNGENID) %>%
@@ -271,10 +323,9 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
             followup_idx = list(which(.data$lab_period == "Followup")),
             n_baseline = length(baseline_idx[[1]]),
             n_followup = length(followup_idx[[1]]),
-            baseline = summary_function(.data$VALUE[baseline_idx[[1]]], na.rm = TRUE),
-            followup = summary_function(.data$VALUE[followup_idx[[1]]], na.rm = TRUE),
-            baseline = ifelse(.data$n_baseline>0,summary_function(.data$VALUE[baseline_idx[[1]]], na.rm = TRUE),NA),
-            followup = ifelse(.data$n_followup>0,summary_function(.data$VALUE[followup_idx[[1]]], na.rm = TRUE),NA),
+            ### pass the full data frame of lab measurements for the individual to the summary functions, so that they can use time_to_first_drug or other variables if needed
+            baseline = ifelse(.data$n_baseline>0,.apply_summary(pick(everything())[baseline_idx[[1]], ], summary_baseline), NA),
+            followup = ifelse(.data$n_followup>0,.apply_summary(pick(everything())[followup_idx[[1]], ], summary_followup), NA),
             baseline_age = first(.data$first_drug_age),
             baseline_date = first(.data$first_drug_date),
             first_drug = first(.data$first_drug),
@@ -309,14 +360,19 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
             dplyr::group_by(.data$FINNGENID) %>%
             dplyr::summarize(
                 baseline_idx = list(which(.data$purchase_period == "Baseline")),
-                followup_idx = list(which(.data$purchase_period == "Followup")),
+                followup_idx = list(which(.data$purchase_period == "Followup" )),
+                between_baseline_and_followup_idx = list(which(.data$purchase_period == "Between_Baseline_and_Followup")),
                 n_purchases_baseline = length(baseline_idx[[1]]),
                 n_purchases_followup = length(followup_idx[[1]]),
+                n_purchases_between_baseline_and_followup = length(between_baseline_and_followup_idx[[1]]),
+                n_purchases_first_drug_to_end_of_fu = n_purchases_followup + n_purchases_between_baseline_and_followup,
                 ### Calculate total DDDs purchased in followup period. assume N_PACK is 1 if missing
                 total_ddd_followup = sum(.data$DDDPerPack[followup_idx[[1]]] * .data$N_PACKS_imputed[followup_idx[[1]]], 
                                         na.rm = TRUE),
+                total_ddd_first_drug_to_end_of_fu = total_ddd_followup + sum(.data$DDDPerPack[between_baseline_and_followup_idx[[1]]] * .data$N_PACKS_imputed[between_baseline_and_followup_idx[[1]]], 
+                                        na.rm = TRUE) + sum(.data$DDDPerPack[baseline_idx[[1]]] * .data$N_PACKS_imputed[baseline_idx[[1]]], na.rm = TRUE),                  
                 n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
-            ) %>% select(-followup_idx, -baseline_idx)
+            ) %>% select(-followup_idx, -baseline_idx, -between_baseline_and_followup_idx)
     } else {
         drug_purch_summaries <- drug_purchases %>%
             dplyr::filter(!is.na(.data$purchase_period)) %>%
