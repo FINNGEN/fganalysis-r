@@ -105,12 +105,6 @@ conn <- connect_fgdata("/finngen/library-green/code/fganalysis/config/db_config_
 
 ```
 
-Once installed, load the package into your R session:
-
-```R
-library(fganalysis)
-```
-
 ## Data Access
 
 The package accesses data through a centralized connection object. The connection is configured via a JSON file, which specifies the paths to different datasets.
@@ -150,6 +144,8 @@ The main data tables are:
 - **`endpoint`**: Endpoint data in long format.
 - **`vnr`**: VNR (VNR nordic drug article numbering, https://wiki.vnr.fi/?page_id=36 )data.
 - **`long_anthropometric`**: Longitudinal anthropometric measurements which is weight, height, blood pressure, smoking and alcohol audits. collected during hospital and primary care visits. (gs://finngen-production-library-red/finngen_R13/hilmo_avohilmo_extended_1.0/finngen_R13_hilmo_avohilmo_extended_readme_1.0.txt).
+- **`drug_events`**: Combines KELA reimbursement, KELA purchase and Kanta prescription data. This data is used by default for all drug analyses https://docs.finngen.fi/finngen-data-specifics/red-library-data-individual-level-data/what-phenotype-files-are-available-in-sandbox-1/drug-events
+  
 
 ### Local Configuration
 
