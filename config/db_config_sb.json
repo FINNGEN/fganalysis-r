@@ -11,7 +11,7 @@
         "path": "/finngen/shared_nfs/R13/phenos/finngen_R13_minimum_extended_1.0.parquet",
         "type": "parquet"
     },
-    "cov_pheno:": {
+    "cov_pheno": {
         "path": "/finngen/shared_nfs/R13/phenos/R13_COV_PHENO_V0.parquet",
         "type": "parquet"
     },
@@ -22,7 +22,8 @@
     "vnr":{
         "path":  "/finngen/shared_nfs/R13/phenos/VNR_fi_2.0_dedup.tsv",
         "type": "tsv",
-        "recodings": [{"column":"VNR", "function": "as.character"}]
+        "recodings": [{"column":"VNR", "function": "as.character"}],
+        "colclasses": {"VNR": "character"}
     },
     "long_anthropometric": {
         "path": "/finngen/shared_nfs/R13/phenos/finngen_R13_hilmo_avohilmo_extended_1.0_dedup_fixbp.parquet",

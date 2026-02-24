@@ -80,17 +80,15 @@ get_drug_purchases <- function(conn, druglist, finngen_ids=NULL,use_only_reimbur
                         paste0(druglist, collapse = '|'),
                         ")")
 
-
-    all_phenos <- conn$pheno
-
+    
     if ("drug_events" %in% names(conn) & !use_only_reimbursement) {
         print("Using drug data combining reimbursement and delivery data.")
         drugs <- conn$drug_events %>% 
-                dplyr::filter( str_detect( .data$ATC, drugs_regex ) ) 
+                dplyr::filter( str_detect( .data$ATC, drugs_regex ) ) %>% rename(N_PACKS = .data$MEDICATION_QUANTITY)
     } else {
         print("Using drug data from reimbursement data only! i.e. longitudinal data from purchase registry.")
         return_cols <- c("FINNGENID", "EVENT_AGE", "APPROX_EVENT_DAY", ATC = "CODE1", REIMB_CODE = "CODE2", VNR = "CODE3", N_PACKS = "CODE4")
-        drugs <- all_phenos %>%
+        drugs <- conn$pheno %>%
             dplyr::filter(.data$SOURCE == "PURCH" & str_detect( .data$CODE1, drugs_regex )) %>%
             select(all_of(return_cols))
     }

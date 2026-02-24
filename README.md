@@ -58,12 +58,12 @@ The package is organized into logical modules for better maintainability:
 
 - **`drug_response_core.R`** - Core drug response analysis
   - `drug.response()` - Creates drug response S3 object
-  - `create_drug_response()` - Main function for drug response analysis
-  - `generate_response_summary()` - Summarizes drug responses
+  - `create_drug_response()` - Main function for drug response analysis with period annotations
+  - `generate_response_summary()` - Summarizes drug responses with baseline/followup metrics and drug purchase metadata
 
 - **`visualization.R`** - Plotting and visualization functions
-  - `summarize_drug_response()` - Creates comprehensive summary plots and tables
-  - `plot_lab_value_distribution()` - Boxplot comparison of lab values
+  - `summarize_drug_response()` - Creates comprehensive summary plots and tables with baseline/followup terminology
+  - `plot_lab_value_distribution()` - Violin plot comparison of lab values at baseline and followup
   - `summarize_drug_purchases_upset()` - UpSet plot for drug combinations
 
 - **`blup_analysis.R`** - BLUP/Linear Mixed Model analysis
@@ -289,12 +289,18 @@ The package follows the **single responsibility principle** for covariate handli
 - **`plot_median_pre_drug(measurements_before_mad, measurements_after_mad, output_dir = ".", output_file_prefix = "", sex_cols = c("SEX", "SEX_IMPUTED"))`**: Generates diagnostic plots for median pre-drug analysis, including distribution plots before and after MAD outlier removal, and sex-stratified violin plots. This function is designed to work with the output from `get_median_pre_drug` or similar data structures.
 
 ### Analysis
-- **`create_drug_response(conn, lablist, druglist, before_period, after_period, finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL)`**: The main analysis function. It calculates the drug response based on lab value changes before and after the first drug purchase. The `remove_outliers_sd` parameter can be used to remove outliers (specify number of SDs from mean, e.g., 1-6). The `external_labs` parameter allows you to supply your own lab measurements instead of using Kanta lab values (see "Using External Lab Values" section below). Response is drug.response object containing all data related to the analysis and results.
-   The `responses` data frame within the object contains the summarized response data for each individual, including baseline and followup lab values, drug purchase summaries, and calculated response. The `all_measurements` and `all_drug_purchases` data frames contain the raw lab measurements and drug purchase data used in the analysis, respectively. 
-  
-
-
-- **`generate_response_summary(lab_measurements, before_period, after_period, summary_function = median)`**: A helper function to calculate the summary statistics for the response (e.g., median value before and after treatment). Called by `create_drug_response`. The `summary_function` parameter allows using different summary statistics (default is median).
+- **`create_drug_response(conn, lablist, druglist, before_period, after_period, finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL)`**: The main analysis function. It calculates the drug response based on lab value changes before and after the first drug purchase. Returns a `drug.response` object containing:
+  - Response data with baseline/followup measurements and drug purchase metadata
+  - Lab measurements annotated with time periods (`lab_period`: Before_Baseline, Baseline, Followup, Between_Baseline_and_Followup, After_Followup)
+  - Drug purchases annotated with time periods (`purchase_period`)
+  - The `remove_outliers_sd` parameter can be used to remove outliers (specify number of SDs from mean, e.g., 1-6)
+  - The `external_labs` parameter allows you to supply your own lab measurements instead of using Kanta lab values (see "Using External Lab Values" section below)
+- **`generate_response_summary(lab_measurements, drug_purchases, before_period, after_period, summary_function = median)`**: A helper function to calculate the summary statistics for the response (e.g., median value before and after treatment). Called by `create_drug_response`. The function:
+  - Requires `lab_measurements` with `time_to_first_drug` and `lab_period` columns
+  - Requires `drug_purchases` with `time_to_first_drug` and `purchase_period` columns  
+  - Calculates baseline/followup lab summaries (`n_baseline`, `n_followup`, `baseline`, `followup`)
+  - Calculates drug purchase summaries (`n_purchases_baseline`, `n_purchases_followup`, `total_ddd_followup`)
+  - The `summary_function` parameter allows using different summary statistics (default is median)
 - **`get_measurements_before_drug(conn, lablist, druglist, months_before = 3, remove_outliers_sd = NULL, winsorize_pct = NULL, range_sd_filter = NULL, external_labs = NULL)`**: A standalone function to retrieve lab measurements, specifically designed for preparing data for BLUP analysis. It filters measurements to a specified window before a drug purchase for exposed individuals and includes all measurements for unexposed individuals.
   - `conn`: A `fg_data_connection` object.
   - `lablist`: A character vector of OMOP concept IDs for the labs of interest.
@@ -325,8 +331,12 @@ To avoid file conflicts when running both BLUP and median analyses:
 ### Summarization and Output
 - **`summarize_drug_response(drug_response, out_file_prefix)`**: Generates a PDF report with plots and tables summarizing the drug response analysis.
 - **`summarize_drug_purchases_upset(drug_response, out_file_prefix)`**: Generates a PDF file containing an UpSet plot to visualize the intersections of drug purchases.
-- **`drug.response(...)`**: This is not a function to be called directly by the user, but rather the S3 object class that holds the results from `create_drug_response`. It's a list containing the response data, all lab measurements, all drug purchases, and the time periods used for the analysis.
-- **`plot_lab_value_distribution(drug_response, remove_outliers = FALSE)`**: Creates and returns a `ggplot` object containing violin plots (with overlaid boxplots) that compare the distribution of lab values before and after the first drug purchase. The plot is faceted by drug type and includes statistical significance tests. **UPDATED**: Now uses violin plots with consistent ordering ("Before" always on the left in teal #00AFBB, "After" always on the right in gold #E7B800) and ggpubr styling.
+- **`drug.response(...)`**: This is not a function to be called directly by the user, but rather the S3 object class that holds the results from `create_drug_response`. It's a list containing:
+  - `responses`: Response data with columns including `baseline`, `followup`, `response`, `n_baseline`, `n_followup`, drug purchase information (`n_purchases_baseline`, `n_purchases_followup`, `total_ddd_followup`), and extended drug details (VNR, package size, dosage, DDD per pack)
+  - `all_measurements`: All lab measurements with `time_to_first_drug` and `lab_period` annotations
+  - `all_drug_purchases`: All drug purchases with `time_to_first_drug` and `purchase_period` annotations  
+  - `lab_response_period`: The time periods (baseline and followup) used for the analysis
+- **`plot_lab_value_distribution(drug_response, remove_outliers = FALSE)`**: Creates and returns a `ggplot` object containing violin plots (with overlaid boxplots) that compare the distribution of lab values at baseline and followup relative to the first drug purchase. The plot is faceted by drug type and includes statistical significance tests. Uses violin plots with consistent ordering ("Baseline" always on the left in teal #00AFBB, "Followup" always on the right in gold #E7B800) and ggpubr styling.
 
 ### BLUP Analysis (Linear Mixed Models)
 - **`calculate_blup_slopes(data, output_dir = ".", min_measurements = 2, include_sex = TRUE, debug_dir = NULL, drug_exposed_only = FALSE, calculate_post_variance = FALSE, calculate_qc = FALSE, normalize_variance = FALSE, save_model = FALSE, plot_blup_correlation = FALSE, output_file_prefix = NULL, smooth_measurement_intervals = NULL)`**: Implements a linear mixed model (LMM) to calculate Best Linear Unbiased Predictors (BLUPs) for individual-specific slopes of lab value changes over age. This follows the methodology from [Wiegrebe et al. (2024) Nature Communications](https://www.nature.com/articles/s41467-024-54483-9). The function:
@@ -467,17 +477,19 @@ print(head(ibd_counts))
 # 3. Define parameters for drug response analysis
 #    - Lab ID for LDL
 #    - ATC code for statins
-#    - Time windows for "before" and "after" measurements
+#    - Time windows for baseline (before drug) and followup (after drug) measurements
 lab_id <- c("3001308")
 drug_codes <- c("A10")
-before_window <- c(-1, 0)      # 1 year before to drug purchase
-after_window <- c(1/12, 1)   # 1 month to 1 year after drug purchase
+before_window <- c(-1, 0)      # 1 year before to drug purchase (baseline period)
+after_window <- c(1/12, 1)   # 1 month to 1 year after drug purchase (followup period)
 
 # 4. Run the drug response analysis
 #    This function will:
 #    - Get the relevant lab measurements and drug purchases.
 #    - Find the first drug purchase for each individual.
-#    - Calculate the difference in median lab values between the 'after' and 'before' periods.
+#    - Annotate measurements and purchases with period labels (Baseline, Followup, etc.)
+#    - Calculate the difference in median lab values between the baseline and followup periods.
+#    - Calculate drug purchase metadata (counts, total DDD) during different periods.
 response_data <- create_drug_response(
   conn = conn,
   lablist = lab_id,
@@ -780,10 +792,43 @@ blup_results <- calculate_blup_slopes(
 
 ## Recent Updates
 
-### New Features
+### New Features (Current Branch vs Master)
+
+#### Enhanced Drug Purchase Information and Period Tracking
+This branch adds comprehensive drug purchase metadata and harmonizes period terminology across the package:
+
+- **Drug Purchase Metadata**: The `responses` data frame now includes:
+  - `n_purchases_baseline`: Number of drug purchases during the baseline period
+  - `n_purchases_followup`: Number of drug purchases during the followup period  
+  - `total_ddd_followup`: Total Defined Daily Dose (DDD) purchased during followup period
+  - `n_purchases_after_followup`: Number of purchases after the followup period
+  - Extended drug details: `first_drug_vnr`, `first_drug_package_size`, `first_drug_dosage`, `first_drug_dosage_unit`, `first_drug_ddd_per_pack`
+
+- **Period Annotations**: Both lab measurements and drug purchases now include period labels:
+  - Lab measurements have `lab_period` column
+  - Drug purchases have `purchase_period` column
+  - Possible period values: `"Before_Baseline"`, `"Baseline"`, `"Followup"`, `"Between_Baseline_and_Followup"`, `"After_Followup"`
+
+- **Terminology Harmonization**: Consistent naming throughout the package:
+  - Changed from "before/after" to "baseline/followup" in all outputs
+  - Column name changes in response data:
+    - `n_before` → `n_baseline`
+    - `n_after` → `n_followup`
+    - `before` → `baseline`
+    - `after` → `followup`
+  - Updated `time_to_drug` → `time_to_first_drug` for clarity
+  - Updated function signatures: `generate_response_summary()` now requires `drug_purchases` parameter
+
+- **Data Processing Updates**:
+  - `get_drug_purchases()` now renames `MEDICATION_QUANTITY` to `N_PACKS` when using combined drug events
+  - Scripts updated to include `MEDICATION_QUANTITY` in processed drug events
+
+#### Previous Features
+
 - **External Lab Values Support**: Added `external_labs` parameter to `create_drug_response()` and `get_measurements_before_drug()` functions, allowing users to supply their own lab measurements instead of using Kanta lab values.
 
 ### Bug Fixes
+- **Fixed config file key**: Corrected `"cov_pheno:"` (with trailing colon) to `"cov_pheno"` in `db_config_sb.json`
 - **Fixed `get_lab_measurements` covariate handling**: The function now correctly handles covariate columns by only selecting them from the appropriate table after joining. Previously, the function would error if covariate columns didn't exist in the lab data table.
 
 ## Development

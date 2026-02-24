@@ -14,7 +14,7 @@ def main():
     with open(args.input_file, 'r') as infile, open(args.output_file, 'w') as outfile:
         header_idx = { col:i for i, col in enumerate(infile.readline().strip().split('\t')) }
 
-        outfile.write('\t'.join(["FINNGENID", "APPROX_EVENT_DAY", "EVENT_AGE", "ATC", "VNR", "MERGED_SOURCE"]) + '\n')
+        outfile.write('\t'.join(["FINNGENID", "APPROX_EVENT_DAY", "EVENT_AGE", "ATC", "VNR","MEDICATION_QUANTITY", "MERGED_SOURCE"]) + '\n')
 
         for line in infile:
             fields = line.strip().split('\t')
@@ -27,7 +27,7 @@ def main():
             MEDICATION_AGE = fields[header_idx['MEDICATION_AGE']]
             MEDICATION_ATC_CODE = fields[header_idx['MEDICATION_ATC']]
             MEDICATION_VNR = fields[header_idx['MEDICATION_VNR']]
-                
+            MEDICATION_QUANTITY = fields[header_idx['MEDICATION_QUANTITY']]    
             MERGED_SOURCE = fields[header_idx['MERGED_SOURCE']]
 
             AGE = MEDICATION_AGE
@@ -50,6 +50,7 @@ def main():
                 AGE,
                 ATC_CODE,
                 VNR,
+                MEDICATION_QUANTITY,
                 MERGED_SOURCE
             ]) + '\n')
                 

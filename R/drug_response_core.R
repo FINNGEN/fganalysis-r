@@ -3,7 +3,7 @@
 #' @importFrom dplyr bind_rows select mutate filter left_join group_by summarise
 #' @importFrom utils head
 #' @importFrom rlang .data
-#' @importFrom checkmate assertClass assertNumeric assertCharacter assertLogical
+#' @importFrom checkmate assertClass assertNumeric assertCharacter assertLogical assertNumber
 NULL
 
 # Declare global variables to avoid R CMD check notes
@@ -86,7 +86,7 @@ drug.response <- function(responses, lab_measurements,
 #' @param finngen_ids Optional character vector of FINNGENIDs to restrict analysis
 #' @param remove_outliers_sd Optional numeric value (1-6) to remove outliers based on standard deviations
 #' @param external_labs Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE
-#' @return drug.response object
+#' @return drug.response object. The `responses` data frame within the object contains the summarized response data for each individual, including baseline and followup lab values, drug purchase summaries, and calculated response. The `all_measurements` and `all_drug_purchases` data frames contain the raw lab measurements and drug purchase data used in the analysis, respectively.
 #' @export
 create_drug_response <- function(conn, lablist, druglist,
                                  before_period, after_period, summary_function=median, filter_min_max = c(-Inf, Inf),
@@ -130,7 +130,7 @@ create_drug_response <- function(conn, lablist, druglist,
     lab_measurements <- lab_measurements %>% filter(.data$VALUE >= filter_min_max[1] &
         .data$VALUE <= filter_min_max[2])
     print( paste0("Number of lab measurements: " , lab_measurements %>% nrow() ))
-    print(paste0("Filtered ", orig - nrow(lab_measurements), " measurements due to min and max filters"))
+    print( paste0("Filtered ", orig - nrow(lab_measurements), " measurements due to min and max filters") )
 
     if (!is.null(remove_outliers_sd)) {
         mean_val <- mean(lab_measurements$VALUE, na.rm = TRUE)
@@ -151,7 +151,7 @@ create_drug_response <- function(conn, lablist, druglist,
     print("Querying purchases...")
     drug_purchases <- get_drug_purchases(conn, druglist, all_fg_ids,
         use_only_reimbursement = use_only_reimbursement_drugs)
-
+    
     # get_drug_purchases returns ATC column by default (renamed from CODE1)
     # Also capture drug names from VNR data if available
     if ("MedicineName" %in% colnames(drug_purchases) && "Substance" %in% colnames(drug_purchases)) {
@@ -160,7 +160,10 @@ create_drug_response <- function(conn, lablist, druglist,
             arrange(.data$EVENT_AGE) %>%
             dplyr::summarize(n = n(), first_drug_age = first(.data$EVENT_AGE), 
             first_drug = first(.data$ATC), first_drug_date = first(.data$APPROX_EVENT_DAY),
-            first_drug_name = first(.data$MedicineName), first_drug_substance = first(.data$Substance))
+            first_drug_name = first(.data$MedicineName), first_drug_substance = first(.data$Substance),
+            first_drug_vnr = first(.data$VNR), first_drug_package_size = first(.data$PackageSize),
+            first_drug_dosage = first(.data$Dosage), first_drug_dosage_unit = first(.data$DosageUnit),
+            first_drug_ddd_per_pack = first(.data$DDDPerPack))
     } else {
         dr_first_purchase <- drug_purchases %>%
             group_by(.data$FINNGENID) %>%
@@ -170,11 +173,46 @@ create_drug_response <- function(conn, lablist, druglist,
     }
     print(paste0("Number of drug purchases: ", nrow(drug_purchases)))
     lab_measurements <- dplyr::left_join(lab_measurements, dr_first_purchase, by = "FINNGENID")
-    lab_measurements <- lab_measurements %>% mutate(time_to_drug = .data$first_drug_age - .data$EVENT_AGE)
+    lab_measurements <- lab_measurements %>% mutate(time_to_first_drug = .data$first_drug_age - .data$EVENT_AGE)
 
+    ## add time from first drug to purchase to each subsequent drug purchase so that can be used to tally how many drug purchases 
+    ## happened during response period.
+    drug_purchases <- drug_purchases %>%
+        dplyr::left_join(dr_first_purchase %>% 
+        dplyr::select(.data$FINNGENID, first_drug_age = .data$first_drug_age), by = "FINNGENID") %>%
+        dplyr::mutate(time_to_first_drug =  .data$first_drug_age - .data$EVENT_AGE)
+
+
+     # Determine lab period relative to the drug initiation
+    # IMPORTANT: time_to_drug = first_drug_age - EVENT_AGE
+    # So: positive time_to_drug = BEFORE drug; negative time_to_drug = AFTER drug
+    # But the period parameters use the opposite convention for compatibility:
+    # before_period uses negative values (e.g., c(-1, 0) for 1 year to 0 before drug)
+    # after_period uses positive values (e.g., c(0.1, 1) for 0.1 to 1 year after drug)
+    # We need to flip the signs when matching
+    lab_measurements <- lab_measurements %>% mutate(lab_period = case_when(
+        .data$time_to_first_drug > -before_period[1] ~ "Before_Baseline",
+        dplyr::between(.data$time_to_first_drug, -before_period[2], -before_period[1]) ~ "Baseline",
+        dplyr::between(.data$time_to_first_drug, -after_period[2], -after_period[1]) ~ "Followup",
+        dplyr::between(.data$time_to_first_drug, -after_period[1], 0) ~ "Between_Baseline_and_Followup",
+        .data$time_to_first_drug < -after_period[2] ~ "After_Followup",
+        TRUE ~ NA_character_
+    ))
+
+    drug_purchases <- drug_purchases %>%
+        mutate(purchase_period = case_when(
+            .data$time_to_first_drug > -before_period[1] ~ "Before_Baseline",
+            dplyr::between(.data$time_to_first_drug, -before_period[2], -before_period[1]) ~ "Baseline",
+            dplyr::between(.data$time_to_first_drug, -after_period[2], -after_period[1]) ~ "Followup",
+            dplyr::between(.data$time_to_first_drug, -after_period[1], 0) ~ "Between_Baseline_and_Followup",
+            .data$time_to_first_drug < -after_period[2] ~ "After_Followup",
+            TRUE ~ NA_character_)
+        )
+
+
+   
     print("generating response summary...")
-
-    lab_response <- generate_response_summary(lab_measurements, before_period, 
+    lab_response <- generate_response_summary(lab_measurements, drug_purchases = drug_purchases, before_period = before_period, 
     after_period, summary_function=summary_function)
     cat(paste0("Number of individuals with response data: ", nrow(lab_response %>% filter(!is.na(.data$response)))))
 
@@ -187,45 +225,114 @@ create_drug_response <- function(conn, lablist, druglist,
 
 
 #' @title Generate response summary
-#' @param lab_measurements data frame with lab measurements
+#' @param lab_measurements data frame with lab measurements and indicator of time to first drug
+#' @param drug_purchases data frame with drug purchases and indicator of time to first drug
 #' @param before_period vector with two elements, start and end of the before period
 #' @param after_period vector with two elements, start and end of the after period
 #' @param summary_function function to summarize the lab measurements (default is median)
 #' @return data frame with response summary
 #' @export
-generate_response_summary <- function(lab_measurements, before_period, after_period, summary_function = median) {
-    # Determine lab period relative to the drug initiation
-    # IMPORTANT: time_to_drug = first_drug_age - EVENT_AGE
-    # So: positive time_to_drug = BEFORE drug; negative time_to_drug = AFTER drug
-    # But the period parameters use the opposite convention for compatibility:
-    # before_period uses negative values (e.g., c(-1, 0) for 1 year to 0 before drug)
-    # after_period uses positive values (e.g., c(0.1, 1) for 0.1 to 1 year after drug)
-    # We need to flip the signs when matching
-    lab_measurements <- lab_measurements %>% mutate(lab_period = case_when(
-        dplyr::between(.data$time_to_drug, -before_period[2], -before_period[1]) ~ "Before",
-        dplyr::between(.data$time_to_drug, -after_period[2], -after_period[1]) ~ "After",
-        TRUE ~ NA_character_
-    ))
+generate_response_summary <- function(lab_measurements, drug_purchases=NULL, before_period, after_period, summary_function = median) {
+
+    assertNumeric(before_period, len = 2, any.missing = FALSE)
+    assertNumeric(after_period, len = 2, any.missing = FALSE)
+
+    if (is.null(drug_purchases)) {
+        stop("`drug_purchases` must be provided as the second argument to generate_response_summary(). If you are calling this function using an older argument order, please update your code to include a `drug_purchases` data frame.", call. = FALSE)
+    }
+
+    "time_to_first_drug" %in% colnames(drug_purchases) || stop("drug_purchases must contain time_to_first_drug column indicating time relative to drug purchase")
+    "lab_period" %in% colnames(lab_measurements) || stop("lab_measurements must contain lab_period column")
+    "time_to_first_drug" %in% colnames(lab_measurements) || stop("lab_measurements must contain time_to_first_drug column indicating time relative to drug purchase")
+    "purchase_period" %in% colnames(drug_purchases) || stop("drug_purchases must contain purchase_period column indicating time relative to drug purchase")
+
+    assertNumeric(lab_measurements$time_to_first_drug)
+    assertNumeric(drug_purchases$time_to_first_drug)
+
+    assertCharacter(lab_measurements$lab_period) 
+    assertCharacter(drug_purchases$purchase_period)
+
+    all(unique(lab_measurements$lab_period) %in% c("Before_Baseline", "Baseline", "Followup", "After_Followup", "Between_Baseline_and_Followup", NA)) || stop("lab_period column in lab_measurements must contain only 'Before_Baseline', 'Baseline', 'Followup', 'Between_Baseline_and_Followup', 'After_Followup', or NA values")
+    all(unique(drug_purchases$purchase_period) %in% c("Before_Baseline", "Baseline", "Followup", "After_Followup","Between_Baseline_and_Followup", NA)) || stop("purchase_period column in drug_purchases must contain only 'Before_Baseline', 'Baseline', 'Followup', 'After_Followup', or NA values")
+
+    allowed_lab_periods <- c("Before_Baseline", "Baseline", "Followup", "After_Followup", "Between_Baseline_and_Followup")
+    invalid_lab_periods <- setdiff(stats::na.omit(unique(lab_measurements$lab_period)), allowed_lab_periods)
+    length(invalid_lab_periods) == 0 || stop("lab_period column in lab_measurements must contain only 'Before_Baseline', 'Baseline', 'Followup', 'Between_Baseline_and_Followup', 'After_Followup', or NA values")
+    allowed_purchase_periods <- c("Before_Baseline", "Baseline", "Followup", "After_Followup", "Between_Baseline_and_Followup")
+    invalid_purchase_periods <- setdiff(stats::na.omit(unique(drug_purchases$purchase_period)), allowed_purchase_periods)
+    length(invalid_purchase_periods) == 0 || stop("purchase_period column in drug_purchases must contain only 'Before_Baseline', 'Baseline', 'Followup', 'After_Followup', or NA values")
+
 
     lab_response <- lab_measurements %>%
         dplyr::filter(!is.na(.data$lab_period) & !is.na(.data$VALUE)) %>%
         dplyr::group_by(.data$FINNGENID) %>%
         dplyr::summarize(
-            n_before = length(.data$VALUE[.data$lab_period == "Before"]),
-            n_after = length(.data$VALUE[.data$lab_period == "After"]),
-            before = summary_function(.data$VALUE[.data$lab_period == "Before"], na.rm = TRUE),
-            after = summary_function(.data$VALUE[.data$lab_period == "After"], na.rm = TRUE),
-            before = ifelse(.data$n_before>0,summary_function(.data$VALUE[.data$lab_period == "Before"], na.rm = TRUE),NA),
-            after = ifelse(.data$n_after>0,summary_function(.data$VALUE[.data$lab_period == "After"], na.rm = TRUE),NA),
+            baseline_idx = list(which(.data$lab_period == "Baseline")),
+            followup_idx = list(which(.data$lab_period == "Followup")),
+            n_baseline = length(baseline_idx[[1]]),
+            n_followup = length(followup_idx[[1]]),
+            baseline = summary_function(.data$VALUE[baseline_idx[[1]]], na.rm = TRUE),
+            followup = summary_function(.data$VALUE[followup_idx[[1]]], na.rm = TRUE),
+            baseline = ifelse(.data$n_baseline>0,summary_function(.data$VALUE[baseline_idx[[1]]], na.rm = TRUE),NA),
+            followup = ifelse(.data$n_followup>0,summary_function(.data$VALUE[followup_idx[[1]]], na.rm = TRUE),NA),
             baseline_age = first(.data$first_drug_age),
             baseline_date = first(.data$first_drug_date),
             first_drug = first(.data$first_drug),
             first_drug_name = if("first_drug_name" %in% names(.)) first(.data$first_drug_name) else NA,
             first_drug_substance = if ("first_drug_substance" %in% names(.)) first(.data$first_drug_substance) else NA,
-            response = ifelse(!is.na(.data$after) & !is.na(.data$before), .data$after - .data$before, NA),
-            response_percent = .data$response/ .data$before * 100
-            
-        )
+            first_drug_vnr = if ("first_drug_vnr" %in% names(.)) first(.data$first_drug_vnr) else NA,
+            first_drug_package_size = if ("first_drug_package_size" %in% names(.)) first(.data$first_drug_package_size) else NA,
+            first_drug_dosage = if ("first_drug_dosage" %in% names(.)) first(.data$first_drug_dosage) else NA,
+            first_drug_dosage_unit = if ("first_drug_dosage_unit" %in% names(.)) first(.data$first_drug_dosage_unit) else NA,
+            first_drug_ddd_per_pack = if ("first_drug_ddd_per_pack" %in% names(.)) first(.data$first_drug_ddd_per_pack) else NA,
+            response = ifelse(!is.na(.data$followup) & !is.na(.data$baseline), .data$followup - .data$baseline, NA),
+            response_percent = .data$response/ .data$baseline * 100
+        ) %>% select(-followup_idx, -baseline_idx)
+    
+    # Check if DDDPerPack column exists before summarizing
+    has_ddd_column <- "DDDPerPack" %in% colnames(drug_purchases)
+    has_n_packs_column <- "N_PACKS" %in% colnames(drug_purchases)
+    # Impute N_PACKS: use actual value if present and not NA, otherwise default to 1
+    if (has_n_packs_column) {
+        drug_purchases$N_PACKS_imputed <- ifelse(!is.na(drug_purchases$N_PACKS), 
+                                                  drug_purchases$N_PACKS, 1)
+    } else {
+        drug_purchases$N_PACKS_imputed <- 1
+    }
+
+    print("Summarizing drug purchases per individual in response periods...")
+    start_time <- Sys.time()
+
+    if (has_ddd_column) {
+        drug_purch_summaries <- drug_purchases %>%
+            dplyr::filter(!is.na(.data$purchase_period)) %>%
+            dplyr::group_by(.data$FINNGENID) %>%
+            dplyr::summarize(
+                baseline_idx = list(which(.data$purchase_period == "Baseline")),
+                followup_idx = list(which(.data$purchase_period == "Followup")),
+                n_purchases_baseline = length(baseline_idx[[1]]),
+                n_purchases_followup = length(followup_idx[[1]]),
+                ### Calculate total DDDs purchased in followup period. assume N_PACK is 1 if missing
+                total_ddd_followup = sum(.data$DDDPerPack[followup_idx[[1]]] * .data$N_PACKS_imputed[followup_idx[[1]]], 
+                                        na.rm = TRUE),
+                n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
+            ) %>% select(-followup_idx, -baseline_idx)
+    } else {
+        drug_purch_summaries <- drug_purchases %>%
+            dplyr::filter(!is.na(.data$purchase_period)) %>%
+            dplyr::group_by(.data$FINNGENID) %>%
+            dplyr::summarize(
+                n_purchases_baseline = sum(.data$purchase_period == "Baseline"),
+                n_purchases_followup = sum(.data$purchase_period == "Followup"),
+                total_ddd_followup = NA_real_,
+                n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
+            )
+    }
+
+    lab_response <- lab_response %>%
+        dplyr::left_join(drug_purch_summaries, by = "FINNGENID")
+        
+    print(paste("Finished generating response summary. Time taken:", round(difftime(Sys.time(), start_time, units = "secs"), 2), "seconds"))
     lab_response
 }
 
@@ -280,15 +387,18 @@ get_measurements_before_drug <- function(conn, lablist, druglist, months_before,
             filter(.data$OMOP_CONCEPT_ID %in% lablist,
                    !is.na(.data$VALUE))
     } else {
-        lab_measurements <- get_lab_measurements(conn$labs, lablist, require_values = TRUE, use_freetext_values = use_freetext_values)
+        lab_measurements <- get_lab_measurements(conn$labs, lablist, require_values = TRUE, 
+            use_freetext_values = use_freetext_values)
     }
 
     first_purchases <- get_first_purchase(conn, druglist, use_only_reimbursement = use_only_reimbursement) %>%
         select(FINNGENID, first_drug_age = EVENT_AGE)
 
+    
     # 2. Join lab data with first purchase data
     all_measurements <- left_join(lab_measurements, first_purchases, by = "FINNGENID") %>%
         mutate(time_to_drug = .data$first_drug_age - .data$EVENT_AGE)
+
 
     # 3. Handle outlier removal
     if (!is.null(range_sd_filter)) {
