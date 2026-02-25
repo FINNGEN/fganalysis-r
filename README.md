@@ -246,11 +246,46 @@ resp <- create_drug_response(conn,c("3001308"),
                              druglist=c("C10AA"),before_period,after_period,
                               filter_min_max=min_max,
                               remove_outliers_sd = 3)
-## create plots and tables of the respons
+## create plots and tables of the response
 summarize_drug_response(resp, out_file_prefix="3001308_C10AA_resp")
 
-## Create plots and tables of the response
-summarize_drug_response(resp, out_file_prefix = "3001308_A10_resp")
+# Example: Using different summary functions
+# Use median for baseline and minimum for followup
+resp_median_min <- create_drug_response(
+  conn, 
+  c("3001308"), 
+  druglist = c("C10AA"),
+  before_period = before_period,
+  after_period = after_period,
+  summary_functions = list(summary_median, summary_min),
+  filter_min_max = min_max,
+  remove_outliers_sd = 3
+)
+
+# Example: Using closest-to-drug measurements for both periods
+resp_closest <- create_drug_response(
+  conn,
+  c("3001308"),
+  druglist = c("C10AA"),
+  before_period = before_period,
+  after_period = after_period,
+  summary_functions = list(summary_closest_to_drug, summary_closest_to_drug),
+  filter_min_max = min_max
+)
+
+# Example: Custom summary function (e.g., 75th percentile)
+summary_q75 <- function(lab_values) {
+  quantile(lab_values$VALUE, probs = 0.75, na.rm = TRUE)
+}
+
+resp_custom <- create_drug_response(
+  conn,
+  c("3001308"),
+  druglist = c("C10AA"),
+  before_period = before_period,
+  after_period = after_period,
+  summary_functions = list(summary_median, summary_q75)
+)
 ```
 
 The returned `conn` object is a `fg_data_connection` object, and you can access the data tables as its attributes (e.g., `conn$pheno`, `conn$labs`).
@@ -288,19 +323,37 @@ The package follows the **single responsibility principle** for covariate handli
 ### Visualization
 - **`plot_median_pre_drug(measurements_before_mad, measurements_after_mad, output_dir = ".", output_file_prefix = "", sex_cols = c("SEX", "SEX_IMPUTED"))`**: Generates diagnostic plots for median pre-drug analysis, including distribution plots before and after MAD outlier removal, and sex-stratified violin plots. This function is designed to work with the output from `get_median_pre_drug` or similar data structures.
 
+### Summary Functions for Drug Response Analysis
+These functions are used with the `summary_functions` parameter in `create_drug_response()` to control how lab measurements are aggregated for baseline and followup periods:
+
+- **`summary_median(lab_values)`**: Returns the median of all measurements in a period. This is the default and most robust option for typical analyses.
+- **`summary_min(lab_values)`**: Returns the minimum value in a period. Useful when you want to capture the best response (e.g., lowest LDL cholesterol after statin treatment).
+- **`summary_closest_to_drug(lab_values)`**: Returns the measurement closest in time to drug initiation. Useful when timing relative to treatment start is important, or when you want to minimize the effect of long-term trends.
+
+**Custom Functions**: You can also create your own summary functions. They must:
+- Accept a data frame `lab_values` with columns including `VALUE` and `time_to_first_drug`
+- Return a single numeric value
+- Example: `summary_max <- function(lab_values) { max(lab_values$VALUE, na.rm = TRUE) }`
+
 ### Analysis
-- **`create_drug_response(conn, lablist, druglist, before_period, after_period, finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL)`**: The main analysis function. It calculates the drug response based on lab value changes before and after the first drug purchase. Returns a `drug.response` object containing:
+- **`create_drug_response(conn, lablist, druglist, before_period, after_period, summary_functions = list(summary_median, summary_median), filter_min_max = c(-Inf, Inf), use_lab_free_text_values = TRUE, use_only_reimbursement_drugs = FALSE, finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL)`**: The main analysis function. It calculates the drug response based on lab value changes before and after the first drug purchase. Returns a `drug.response` object containing:
   - Response data with baseline/followup measurements and drug purchase metadata
   - Lab measurements annotated with time periods (`lab_period`: Before_Baseline, Baseline, Followup, Between_Baseline_and_Followup, After_Followup)
   - Drug purchases annotated with time periods (`purchase_period`)
+  - **`summary_functions`**: A list of two functions to summarize lab measurements for baseline and followup periods respectively. The package provides three built-in functions:
+    - **`summary_median`** (default): Calculates the median of all measurements in the period
+    - **`summary_min`**: Calculates the minimum value in the period
+    - **`summary_closest_to_drug`**: Selects the measurement closest in time to drug initiation
+    - You can also provide custom functions that accept a data frame of lab measurements and return a single numeric value
+    - Example: `summary_functions = list(summary_median, summary_min)` uses median for baseline and minimum for followup
   - The `remove_outliers_sd` parameter can be used to remove outliers (specify number of SDs from mean, e.g., 1-6)
   - The `external_labs` parameter allows you to supply your own lab measurements instead of using Kanta lab values (see "Using External Lab Values" section below)
-- **`generate_response_summary(lab_measurements, drug_purchases, before_period, after_period, summary_function = median)`**: A helper function to calculate the summary statistics for the response (e.g., median value before and after treatment). Called by `create_drug_response`. The function:
+- **`generate_response_summary(lab_measurements, drug_purchases, before_period, after_period, summary_functions = list(summary_median, summary_median))`**: A helper function to calculate the summary statistics for the response (e.g., median value before and after treatment). Called by `create_drug_response`. The function:
   - Requires `lab_measurements` with `time_to_first_drug` and `lab_period` columns
   - Requires `drug_purchases` with `time_to_first_drug` and `purchase_period` columns  
   - Calculates baseline/followup lab summaries (`n_baseline`, `n_followup`, `baseline`, `followup`)
   - Calculates drug purchase summaries (`n_purchases_baseline`, `n_purchases_followup`, `total_ddd_followup`)
-  - The `summary_function` parameter allows using different summary statistics (default is median)
+  - The `summary_functions` parameter allows using different summary statistics (default is list with median for both periods)
 - **`get_measurements_before_drug(conn, lablist, druglist, months_before = 3, remove_outliers_sd = NULL, winsorize_pct = NULL, range_sd_filter = NULL, external_labs = NULL)`**: A standalone function to retrieve lab measurements, specifically designed for preparing data for BLUP analysis. It filters measurements to a specified window before a drug purchase for exposed individuals and includes all measurements for unexposed individuals.
   - `conn`: A `fg_data_connection` object.
   - `lablist`: A character vector of OMOP concept IDs for the labs of interest.
@@ -793,6 +846,28 @@ blup_results <- calculate_blup_slopes(
 ## Recent Updates
 
 ### New Features (Current Branch vs Master)
+
+#### Flexible Summary Functions for Drug Response Analysis
+The `create_drug_response()` and `generate_response_summary()` functions now support customizable summary functions for baseline and followup periods:
+
+- **`summary_functions` Parameter**: A list of two functions to independently control how baseline and followup measurements are aggregated
+  - First function is applied to baseline period measurements
+  - Second function is applied to followup period measurements
+  - Default: `list(summary_median, summary_median)`
+
+- **Built-in Summary Functions**:
+  - **`summary_median(lab_values)`**: Returns the median of all measurements in a period (default)
+  - **`summary_min(lab_values)`**: Returns the minimum value in a period
+  - **`summary_closest_to_drug(lab_values)`**: Returns the measurement closest in time to drug initiation (uses `time_to_first_drug` column)
+
+- **Custom Functions**: Users can provide their own summary functions that:
+  - Accept a data frame of lab measurements for an individual
+  - Return a single numeric value
+  - Example: `summary_q75 <- function(lab_values) { quantile(lab_values$VALUE, probs = 0.75, na.rm = TRUE) }`
+
+- **Flexible Combinations**: Different functions can be used for baseline vs followup
+  - Example: `summary_functions = list(summary_median, summary_min)` uses median for baseline and minimum for followup
+  - This allows testing different response definitions (e.g., median baseline vs. minimum followup)
 
 #### Enhanced Drug Purchase Information and Period Tracking
 This branch adds comprehensive drug purchase metadata and harmonizes period terminology across the package:
