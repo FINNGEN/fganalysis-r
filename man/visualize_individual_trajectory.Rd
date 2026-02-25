@@ -9,7 +9,7 @@ visualize_individual_trajectory(drug_response, finngen_id)
 \arguments{
 \item{drug_response}{A `drug.response` object containing the data to visualize.}
 
-\item{fingen_id}{The FINNGEN ID of the individual to visualize.}
+\item{finngen_id}{The FINNGEN ID of the individual to visualize.}
 }
 \value{
 A `ggplot` object showing the trajectory of lab values for the specified individual.

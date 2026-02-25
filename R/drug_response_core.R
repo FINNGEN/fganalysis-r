@@ -109,7 +109,12 @@ summary_min <- function(lab_values) {
     res <- summary_function(lab_measurements)
 
     if (!is.numeric(res) || length(res) != 1) {
-        stop(paste0("Summary function must return a single numeric value. Got: ", res))
+        stop(  
+            paste0(  
+                "Summary function must return a single numeric value. ",  
+                "Got type '", typeof(res), "' with length ", length(res), "."  
+            )  
+        )  
     }
     
     res
@@ -241,7 +246,7 @@ create_drug_response <- function(conn, lablist, druglist,
     # We need to flip the signs when matching
     lab_measurements <- lab_measurements %>% mutate(lab_period = case_when(
         .data$time_to_first_drug > -before_period[1] ~ "Before_Baseline",
-        .data$time_to_first_drug >= -before_period[2] & .data$time_to_first_drug <= -before_period[1] ~ "Baseline",
+        dplyr::between(.data$time_to_first_drug, -before_period[2], -before_period[1]) ~ "Baseline",
         dplyr::between(.data$time_to_first_drug, -after_period[2], -after_period[1]) ~ "Followup",
         dplyr::between(.data$time_to_first_drug, -after_period[1], 0) ~ "Between_Baseline_and_Followup",
         .data$time_to_first_drug < -after_period[2] ~ "After_Followup",
@@ -251,7 +256,7 @@ create_drug_response <- function(conn, lablist, druglist,
     drug_purchases <- drug_purchases %>%
         mutate(purchase_period = case_when(
             .data$time_to_first_drug > -before_period[1] ~ "Before_Baseline",
-            .data$time_to_first_drug >= -before_period[2] & .data$time_to_first_drug <= -before_period[1] ~ "Baseline",
+            dplyr::between(.data$time_to_first_drug, -before_period[2], -before_period[1]) ~ "Baseline",
             dplyr::between(.data$time_to_first_drug, -after_period[2], -after_period[1]) ~ "Followup",
             dplyr::between(.data$time_to_first_drug, -after_period[1], 0) ~ "Between_Baseline_and_Followup",
             .data$time_to_first_drug < -after_period[2] ~ "After_Followup",
@@ -378,11 +383,17 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
             dplyr::filter(!is.na(.data$purchase_period)) %>%
             dplyr::group_by(.data$FINNGENID) %>%
             dplyr::summarize(
-                n_purchases_baseline = sum(.data$purchase_period == "Baseline"),
-                n_purchases_followup = sum(.data$purchase_period == "Followup"),
+                baseline_idx = list(which(.data$purchase_period == "Baseline")),
+                followup_idx = list(which(.data$purchase_period == "Followup")),
+                between_baseline_and_followup_idx = list(which(.data$purchase_period == "Between_Baseline_and_Followup")),
+                n_purchases_baseline = length(baseline_idx[[1]]),
+                n_purchases_followup = length(followup_idx[[1]]),
+                n_purchases_between_baseline_and_followup = length(between_baseline_and_followup_idx[[1]]),
+                n_purchases_first_drug_to_end_of_fu = n_purchases_followup + n_purchases_between_baseline_and_followup,
                 total_ddd_followup = NA_real_,
+                total_ddd_first_drug_to_end_of_fu = NA_real_,
                 n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
-            )
+            ) %>% select(-followup_idx, -baseline_idx, -between_baseline_and_followup_idx)
     }
 
     lab_response <- lab_response %>%

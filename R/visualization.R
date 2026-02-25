@@ -145,8 +145,8 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
     top10 <- responses %>% arrange(desc(.data$response)) %>% head(10)
     bottom10  <- responses %>% arrange(.data$response) %>% head(10)
 
-    ### visualize top and bottom weight responders with line plot of weight trajectories before and after drug purchase with time to drug purchase on x axis and weight on y axis, facet by FINNGENID and color by lab period (baseline vs followup)
-    pl <- ggplot(filter(drug_response$all_measurements, lab_period %in% c("Followup", "Baseline") & 
+    ### visualize top and bottom lab value responders with line plot of measurement trajectories before and after drug purchase with time to drug purchase on x axis and measurement on y axis, facet by FINNGENID and color by lab period (baseline vs followup) 
+    pl <- ggplot(filter(drug_response$all_measurements, .data$lab_period %in% c("Followup", "Baseline") & 
                             FINNGENID %in% top10$FINNGENID), 
                             aes(x=-time_to_first_drug,y=VALUE, colour=lab_period)) +
         geom_point(size=2) +
@@ -156,19 +156,19 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
         labs(title="Trajectories of individuals with biggest response")
     ### add drug purchase times to the plot with...
     pl <- pl + geom_vline(data=drug_response$all_drug_purchases %>% 
-                filter(FINNGENID %in% top10$FINNGENID & purchase_period=="Followup"), aes(xintercept=-time_to_first_drug), linetype="dotted", colour="red")
+                filter(.data$FINNGENID %in% top10$FINNGENID & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug), linetype="dotted", colour="red")
 
     plot(pl)
 
-    pl <- ggplot(filter(drug_response$all_measurements, lab_period %in% c("Followup", "Baseline") & 
-                            FINNGENID %in% bottom10$FINNGENID), aes(x=-time_to_first_drug,y=VALUE, colour=lab_period)) +
+    pl <- ggplot(filter(drug_response$all_measurements, .data$lab_period %in% c("Followup", "Baseline") & 
+                            .data$FINNGENID %in% bottom10$FINNGENID), aes(x=-.data$time_to_first_drug,y=.data$VALUE, colour=.data$lab_period)) +
         geom_point(size=2) +
         facet_wrap(~FINNGENID) +
         theme_minimal(base_size = 12) +
         geom_vline(xintercept=0, linetype="dashed") +
         labs(title="Trajectories of individuals with smallest response")
     pl <- pl + geom_vline(data=drug_response$all_drug_purchases %>% 
-                filter(FINNGENID %in% bottom10$FINNGENID & purchase_period=="Followup"), aes(xintercept=-time_to_first_drug), linetype="dotted", colour="red")
+                filter(.data$FINNGENID %in% bottom10$FINNGENID & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug), linetype="dotted", colour="red")
     plot(pl)
 
     # Get unique drug labels and corresponding drug codes for per-drug plots
@@ -260,7 +260,7 @@ visualize_individual_trajectory <- function(drug_response, finngen_id) {
         stop("Input must be a drug.response object.")
     }
 
-    assertString(finngen_id)
+    checkmate::assertString(finngen_id)
     
     individual_data <- drug_response$all_measurements %>% filter(.data$FINNGENID == finngen_id)
     resp <- drug_response$responses %>% filter(.data$FINNGENID == finngen_id) %>% select(.data$response) %>% pull()
@@ -273,7 +273,7 @@ visualize_individual_trajectory <- function(drug_response, finngen_id) {
                 y = "Lab measurement") +
         theme_minimal()
     p <- p + geom_vline(data=drug_response$all_drug_purchases %>% 
-                filter(FINNGENID == finngen_id & purchase_period=="Followup"), aes(xintercept=-time_to_first_drug), linetype="dotted", colour="red")
+                filter(.data$FINNGENID == finngen_id & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug), linetype="dotted", colour="red")
     return(p)
 }
 
