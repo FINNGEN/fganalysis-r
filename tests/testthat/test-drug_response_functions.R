@@ -145,7 +145,10 @@ test_that("create_drug_response returns the correct structure", {
         OMOP_CONCEPT_ID = c("lab1", "lab1", "lab1", "lab1", "lab2", "lab2", "lab2", "lab2", "lab2", "lab2"),
         EVENT_AGE = c(20.6, 20.7, 20.8, 21.5, 19.5, 19.6, 19.7, 20.5, 25, 25.5),
         MEASUREMENT_VALUE_HARMONIZED = c(15, 16.6, 17, 25, 8, 9.5, 10, 40, 50, 38),
-        MEASUREMENT_VALUE_MERGED = c(15, 16.6, 17, 25, 8, 9.5, 10, 40, 50, 38)
+        MEASUREMENT_VALUE_MERGED = c(15, 16.6, 17, 25, 8, 9.5, 10, 40, 50, 38),
+        APPROX_EVENT_DATETIME = as.Date(c("2015-07-17", "2015-07-17", "2015-07-17", "2015-07-17",
+                                         "2015-07-18", "2015-07-18", "2015-07-18", "2015-07-18",
+                                         "2015-07-19", "2015-07-19"))
     )
 
     drug_events <- data.frame(
