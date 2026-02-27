@@ -9,7 +9,8 @@ mock_conn <- function() {
         EVENT_AGE = c(50.0, 50.1, 50.5, 60.0, 60.3, 70.0, 70.2, 80.0),
         MEASURED_VALUE_HARMONIZED = c(100, 102, 150, 110, 112, 120, 122, 500),
         MEASUREMENT_VALUE_MERGED = c(100, 102, 150, 110, 112, 120, 122, 500),
-        stringsAsFactors = FALSE
+        stringsAsFactors = FALSE,
+        APPROX_EVENT_DATETIME = as.Date(c("2015-01-01", "2015-02-01", "2015-03-01", "2015-01-01", "2015-02-01", "2015-01-01", "2015-02-01", "2015-01-01"))
     )
 
     pheno <- data.frame(
@@ -164,7 +165,8 @@ test_that("get_measurements_before_drug calculates time_to_drug correctly", {
             EVENT_AGE = c(49.0, 50.0, 51.0, 59.0, 61.0, 69.0, 71.0),
             MEASUREMENT_VALUE_MERGED = c(100, 102, 104, 110, 112, 120, 122),
             MEASUREMENT_VALUE_MERGED = c(100, 102, 104, 110, 112, 120, 122),
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            APPROX_EVENT_DATETIME = as.Date(c("2015-01-01", "2015-02-01", "2015-03-01", "2015-01-01", "2015-02-01", "2015-01-01", "2015-02-01"))
         ),
         pheno = data.frame(
             FINNGENID = c("FG1", "FG2"),
@@ -237,7 +239,8 @@ test_that("get_measurements_before_drug filters by time window correctly", {
             EVENT_AGE = c(49.0, 49.5, 50.0, 50.2, 50.5), # Drug at 50.5
             MEASUREMENT_VALUE_HARMONIZED = c(100, 101, 102, 103, 104),
             MEASUREMENT_VALUE_MERGED = c(100, 101, 102, 103, 104),
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            APPROX_EVENT_DATETIME = as.Date(c("2015-01-01", "2015-02-01", "2015-03-01", "2015-04-01", "2015-05-01"))
         ),
         pheno = data.frame(
             FINNGENID = "FG1",
@@ -305,7 +308,8 @@ test_that("get_measurements_before_drug returns expected measurement values", {
             EVENT_AGE = c(49.0, 50.0, 51.0, 59.0, 61.0, 69.0, 71.0),
             MEASUREMENT_VALUE_HARMONIZED = c(100, 102, 104, 110, 112, 120, 122),
             MEASUREMENT_VALUE_MERGED = c(100, 102, 104, 110, 112, 120, 122),
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            APPROX_EVENT_DATETIME = as.Date(c("2015-01-01", "2015-02-01", "2015-03-01", "2015-01-01", "2015-02-01", "2015-01-01", "2015-02-01"))
         ),
         pheno = data.frame(
             FINNGENID = c("FG1", "FG2"),
@@ -383,7 +387,8 @@ test_that("get_measurements_before_drug handles edge cases correctly", {
             EVENT_AGE = c(49.5, 50.0, 50.5), # Drug at 50.5
             MEASUREMENT_VALUE_HARMONIZED = c(100, 102, 104),
             MEASUREMENT_VALUE_MERGED = c(100, 102, 104),
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            APPROX_EVENT_DATETIME = as.Date(c("2015-01-01", "2015-02-01", "2015-03-01"))
         ),
         pheno = data.frame(
             FINNGENID = "FG1",
@@ -425,7 +430,8 @@ test_that("get_measurements_before_drug handles edge cases correctly", {
             EVENT_AGE = c(50.2, 50.4), # Drug at 50.5, both too close
             MEASUREMENT_VALUE_MERGED = c(100, 102),
             MEASUREMENT_VALUE_HARMONIZED = c(100, 102),
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            APPROX_EVENT_DATETIME = as.Date(c("2015-01-01", "2015-02-01"))  
         ),
         pheno = data.frame(
             FINNGENID = "FG1",
@@ -462,7 +468,8 @@ test_that("get_measurements_before_drug handles edge cases correctly", {
             EVENT_AGE = c(49.0, 50.0, 59.0, 61.0),
             MEASUREMENT_VALUE_HARMONIZED = c(100, 102, 110, 112),
             MEASUREMENT_VALUE_MERGED = c(100, 102, 110, 112),
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            APPROX_EVENT_DATETIME = as.Date(c("2015-01-01", "2015-02-01", "2015-01-01", "2015-02-01"))
         ),
         pheno = data.frame(
             FINNGENID = character(0), # No drug purchases
@@ -503,7 +510,8 @@ test_that("get_measurements_before_drug outlier removal preserves expected value
             EVENT_AGE = c(49.0, 50.0, 51.0, 52.0, 59.0, 61.0),
             MEASUREMENT_VALUE_HARMONIZED = c(100, 102, 500, 104, 110, 112), # 500 is outlier
             MEASUREMENT_VALUE_MERGED = c(100, 102, 500, 104, 110, 112),
-            stringsAsFactors = FALSE
+            stringsAsFactors = FALSE,
+            APPROX_EVENT_DATETIME = as.Date(c("2015-01-01", "2015-02-01", "2015-03-01", "2015-04-01", "2015-01-01", "2015-02-01"))
         ),
         pheno = data.frame(
             FINNGENID = c("FG1", "FG2"),

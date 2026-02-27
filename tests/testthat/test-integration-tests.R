@@ -11,7 +11,8 @@ test_that("integration test: drug response and plotting for mock data", {
         OMOP_CONCEPT_ID=c("1","1","1","1","1","1","1","1"),
         FINNGENID=c("FG1","FG1","FG1","FG2","FG2","FG2","FG3","FG3"),
         EVENT_AGE=c(1.0,1.2,1.8,1.1,1.3,1.9,1.25,2.0),
-        MEASUREMENT_VALUE_MERGED=c(1.0,1.2,1.9,0.9,1.2,2.0,1.1,2.1)
+        MEASUREMENT_VALUE_MERGED=c(1.0,1.2,1.9,0.9,1.2,2.0,1.1,2.1),
+        APPROX_EVENT_DATETIME=c(as.Date("2000-01-01"),as.Date("2000-01-01"),as.Date("2000-01-01"),as.Date("2000-01-01"),as.Date("2000-01-01"),as.Date("2000-01-01"),as.Date("2000-01-01"),as.Date("2000-01-01"))
     )
     drug_data <- data.frame(
         FINNGENID=c("FG1","FG2","FG3","FG3"),
