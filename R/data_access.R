@@ -22,7 +22,7 @@ get_lab_measurements <- function(all_labs, lablist, require_values=TRUE,
         lab_value_column <- "MEASUREMENT_VALUE_MERGED"
     }
 
-    return_cols <- c("OMOP_CONCEPT_ID","FINNGENID", "OMOP_CONCEPT_ID", "EVENT_AGE", "VALUE"=lab_value_column)
+    return_cols <- c("OMOP_CONCEPT_ID","FINNGENID", "OMOP_CONCEPT_ID", "EVENT_AGE","APPROX_EVENT_DATETIME", "VALUE"=lab_value_column)
 
 
   # Ensure robust matching regardless of column/vector types (character vs numeric)
