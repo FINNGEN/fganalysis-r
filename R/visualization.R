@@ -131,8 +131,8 @@ summarize_drug_response <- function(drug_response, out_file_prefix, hide_ids_in_
     plot(ggtexttable(responses %>% group_by(.data$drug_label,.data$first_drug) %>%
         summarise(
             n_purch = n(), n_indiv = length(unique(.data$FINNGENID)),
-            p = summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4],
-            response = mean(.data$response),
+            p = format(summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4], digits=2),
+            response = format(mean(.data$response), digits=2),
             purch_age_dist = quant_text(.data$baseline_age),
         ) %>%
         select(.data$drug_label, .data$n_purch, .data$response, .data$p, .data$purch_age_dist) %>%
@@ -141,8 +141,8 @@ summarize_drug_response <- function(drug_response, out_file_prefix, hide_ids_in_
     plot(ggtexttable(responses %>% group_by(.data$first_drug_substance) %>%
         summarise(
             n_purch = n(), n_indiv = length(unique(.data$FINNGENID)),
-            p = summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4],
-            response = mean(.data$response),
+            p = format(summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4], digits=2),
+            response = format(mean(.data$response), digits=2),
             purch_age_dist = quant_text(.data$baseline_age),
         ) %>%
         select(.data$first_drug_substance, .data$n_purch, .data$response, .data$p, .data$purch_age_dist) %>%
