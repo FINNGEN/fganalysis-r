@@ -24,7 +24,6 @@ get_lab_measurements <- function(all_labs, lablist, require_values=TRUE,
 
     return_cols <- c("OMOP_CONCEPT_ID","FINNGENID", "OMOP_CONCEPT_ID", "EVENT_AGE", "VALUE"=lab_value_column)
 
-
   # Ensure robust matching regardless of column/vector types (character vs numeric)
   # The OMOP_CONCEPT_ID column may be stored as DECIMAL in the parquet file
   # We need to cast it to character BEFORE filtering to avoid type conversion errors
