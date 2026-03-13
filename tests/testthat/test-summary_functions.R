@@ -7,6 +7,8 @@ test_that("create_drug_response works with summary_median", {
         FINNGENID = c("FG1", "FG1", "FG1", "FG1", "FG1", "FG1", "FG2", "FG2", "FG2", "FG2", "FG2", "FG2"),
         OMOP_CONCEPT_ID = c("lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1"),
         EVENT_AGE = c(20.5, 20.7, 20.9, 21.3, 21.5, 21.7, 19.3, 19.6, 19.8, 20.3, 20.5, 20.8),
+        APPROX_EVENT_DATETIME = as.POSIXct(c("2015-01-15", "2015-02-15", "2015-03-15", "2015-08-15", "2015-09-15", "2015-10-15",
+                                             "2014-04-15", "2014-07-15", "2014-09-15", "2015-05-15", "2015-07-15", "2015-11-15")),
         MEASUREMENT_VALUE_HARMONIZED = c(10, 20, 30, 35, 40, 50, 5, 15, 25, 30, 35, 45),
         MEASUREMENT_VALUE_MERGED = c(10, 20, 30, 35, 40, 50, 5, 15, 25, 30, 35, 45)
     )
@@ -63,6 +65,8 @@ test_that("create_drug_response works with summary_min", {
         FINNGENID = c("FG1", "FG1", "FG1", "FG1", "FG1", "FG1", "FG2", "FG2", "FG2", "FG2", "FG2", "FG2"),
         OMOP_CONCEPT_ID = c("lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1", "lab1"),
         EVENT_AGE = c(20.5, 20.7, 20.9, 21.3, 21.5, 21.7, 19.3, 19.6, 19.8, 20.3, 20.5, 20.8),
+        APPROX_EVENT_DATETIME = as.POSIXct(c("2015-01-15", "2015-02-15", "2015-03-15", "2015-08-15", "2015-09-15", "2015-10-15",
+                                             "2014-04-15", "2014-07-15", "2014-09-15", "2015-05-15", "2015-07-15", "2015-11-15")),
         MEASUREMENT_VALUE_HARMONIZED = c(10, 20, 30, 38, 40, 50, 5, 15, 25, 28, 35, 45),
         MEASUREMENT_VALUE_MERGED = c(10, 20, 30, 38, 40, 50, 5, 15, 25, 28, 35, 45)
     )
@@ -123,6 +127,8 @@ test_that("create_drug_response works with summary_closest_to_drug", {
         # FG2: drug at 20.0, baseline at 19.0 (1.0y before), 19.5 (0.5y before), 19.8 (0.2y before)
         #      followup at 20.15 (0.15y after), 20.3 (0.3y after), 20.7 (0.7y after)
         EVENT_AGE = c(20.5, 20.7, 20.9, 21.2, 21.5, 21.8, 19.0, 19.5, 19.8, 20.15, 20.3, 20.7),
+        APPROX_EVENT_DATETIME = as.POSIXct(c("2015-01-15", "2015-02-15", "2015-03-15", "2015-06-15", "2015-09-15", "2015-12-15",
+                                             "2014-01-15", "2014-07-15", "2014-10-15", "2015-02-28", "2015-05-15", "2015-10-15")),
         MEASUREMENT_VALUE_HARMONIZED = c(10, 20, 30, 38, 40, 48, 5, 15, 25, 28, 35, 42),
         MEASUREMENT_VALUE_MERGED = c(10, 20, 30, 38, 40, 48, 5, 15, 25, 28, 35, 42)
     )
@@ -182,6 +188,7 @@ test_that("create_drug_response works with different summary functions for basel
         # Baseline: 20.4 (0.6y), 20.6 (0.4y), 20.8 (0.2y) -> values 10, 20, 30
         # Followup: 21.3 (0.3y), 21.7 (0.7y) -> values 40, 50
         EVENT_AGE = c(20.4, 20.6, 20.8, 21.3, 21.7),
+        APPROX_EVENT_DATETIME = as.POSIXct(c("2014-06-15", "2014-08-15", "2014-10-15", "2015-05-15", "2015-10-15")),
         MEASUREMENT_VALUE_HARMONIZED = c(10, 20, 30, 40, 50),
         MEASUREMENT_VALUE_MERGED = c(10, 20, 30, 40, 50)
     )
@@ -310,6 +317,7 @@ test_that("create_drug_response fails with invalid summary_functions parameter",
         FINNGENID = c("FG1"),
         OMOP_CONCEPT_ID = c("lab1"),
         EVENT_AGE = c(20.5),
+        APPROX_EVENT_DATETIME = as.POSIXct("2015-01-15"),
         MEASUREMENT_VALUE_HARMONIZED = c(10),
         MEASUREMENT_VALUE_MERGED = c(10)
     )
