@@ -4,12 +4,18 @@
 \alias{summarize_drug_response}
 \title{Summarize drug response}
 \usage{
-summarize_drug_response(drug_response, out_file_prefix)
+summarize_drug_response(
+  drug_response,
+  out_file_prefix,
+  hide_ids_in_plots = TRUE
+)
 }
 \arguments{
 \item{drug_response}{drug.response object}
 
 \item{out_file_prefix}{prefix for output files}
+
+\item{hide_ids_in_plots}{logical, whether to hide FINNGEN IDs in the individual trajectory plots. Default is TRUE.}
 }
 \description{
 Summarize drug response data created with create_drug_response. writes plots and tables to disk
