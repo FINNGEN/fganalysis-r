@@ -22,11 +22,7 @@ get_lab_measurements <- function(all_labs, lablist, require_values=TRUE,
         lab_value_column <- "MEASUREMENT_VALUE_MERGED"
     }
 
-<<<<<<< HEAD
     return_cols <- c("OMOP_CONCEPT_ID","FINNGENID", "OMOP_CONCEPT_ID", "EVENT_AGE","APPROX_EVENT_DATETIME", "VALUE"=lab_value_column)
-=======
-    return_cols <- c("OMOP_CONCEPT_ID","FINNGENID", "OMOP_CONCEPT_ID", "EVENT_AGE", "VALUE"=lab_value_column)
->>>>>>> 957e5c000980c917d69448558e91edd496a9f3f0
 
   # Ensure robust matching regardless of column/vector types (character vs numeric)
   # The OMOP_CONCEPT_ID column may be stored as DECIMAL in the parquet file

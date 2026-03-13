@@ -127,9 +127,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix, hide_ids_in_
         paste0(out_file_prefix, "_responses_by_drug.txt"),
         sep = "\t", row.names = FALSE, quote = FALSE
     )
-
-
-
+    
     plot(ggtexttable(responses %>% group_by(.data$drug_label,.data$first_drug) %>%
         summarise(
             n_purch = n(), n_indiv = length(unique(.data$FINNGENID)),
@@ -138,7 +136,17 @@ summarize_drug_response <- function(drug_response, out_file_prefix, hide_ids_in_
             purch_age_dist = quant_text(.data$baseline_age),
         ) %>%
         select(.data$drug_label, .data$n_purch, .data$response, .data$p, .data$purch_age_dist) %>%
-        arrange(desc(.data$n_purch))))
+        arrange(desc(.data$n_purch)))) + labs(title="Summary of response by drug label (ATC code + substance)")
+
+    plot(ggtexttable(responses %>% group_by(.data$first_drug_substance) %>%
+        summarise(
+            n_purch = n(), n_indiv = length(unique(.data$FINNGENID)),
+            p = summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4],
+            response = mean(.data$response),
+            purch_age_dist = quant_text(.data$baseline_age),
+        ) %>%
+        select(.data$first_drug_substance, .data$n_purch, .data$response, .data$p, .data$purch_age_dist) %>%
+        arrange(desc(.data$n_purch)))) + labs(title="Summary of response by drug substance")
 
 
     begin <- ceiling(max(min(-labs$time_to_first_drug, na.rm = TRUE), drug_response$lab_response_period$before_period[1]))
