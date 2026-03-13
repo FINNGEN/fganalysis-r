@@ -60,9 +60,10 @@ create_drug_labels <- function(data) {
 #' @description Summarize drug response data created with create_drug_response. writes plots and tables to disk
 #' @param drug_response drug.response object
 #' @param out_file_prefix prefix for output files
+#' @param hide_ids_in_plots logical, whether to hide FINNGEN IDs in the individual trajectory plots. Default is TRUE.
 #' @return NULL
 #' @export
-summarize_drug_response <- function(drug_response, out_file_prefix) {
+summarize_drug_response <- function(drug_response, out_file_prefix, hide_ids_in_plots = TRUE) {
     labs <- drug_response$all_measurements %>% filter(!is.na(.data$VALUE))
     responses <- drug_response$responses %>% filter(!is.na(.data$response))
     drugs <- drug_response$all_drug_purchases
@@ -88,11 +89,22 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
     n_no_pre <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_baseline == 0)
     n_no_pos <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_followup == 0)
 
-    plot(ggtexttable(data.frame(
+    ns_table <- ggtexttable(data.frame(
         "Group" = c("labs", "drugs", "in analysis", "no_pre_value", "no_post_value"),
         "N" = c(inds_with_lab, inds_with_drugs, inds_in_analysis, nrow(n_no_pre), nrow(n_no_pos)),
         "N events" = c(n_lab_meas, n_drugs_meas, inds_in_analysis, sum(n_no_pre$n_followup), sum(n_no_pos$n_baseline))
-    ), rows = NULL))
+    ), rows = NULL) %>% tab_add_title(text="Summary of data available")
+
+    ### create table of mean response and quantiles for raw response and response percent.
+    resps <- rbind( summary(responses$response), summary(responses$response_percent))
+    row.names(resps) <- c("Response", "Response Percent")
+
+    resp_Table <- ggtexttable(format(resps, digits=2), theme = ttheme("light")) %>%
+        tab_add_title(text="Response summary statistics")
+
+    plot(ggarrange(ns_table, resp_Table, nrow = 2))
+    
+
 
     per_drug <- responses %>%
         group_by(.data$first_drug, .data$drug_label ) %>%
@@ -142,6 +154,38 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
         ggtitle("Lab measurements before and after drug purchase")) + theme_bw() +
         theme(axis.text.x = element_text(angle = 45, size = 20)) 
 
+     
+    plot(ggplot(responses, aes(x=n_purchases_first_drug_to_end_of_fu)) +
+        geom_histogram(binwidth=1) +
+        theme_bw(base_size = 18) +
+        labs(title="Total purchases during follow-up", x="Number of purchases during follow-up", y="Count"))
+
+    plot(ggplot(responses, aes(x=total_ddd_first_drug_to_end_of_fu)) +
+        geom_histogram(binwidth=20) +
+        theme_bw(base_size = 18) +
+        labs(title="Total DDD during follow-up", x="Total DDD during follow-up", y="Count"))
+
+    plot(ggplot(responses, aes(x=as.factor(n_purchases_first_drug_to_end_of_fu), y=response)) +
+        geom_boxplot() +
+        geom_point(alpha=0.5) +
+        geom_smooth(method="lm") +
+        theme_bw(base_size = 18) +
+        labs(title="Response vs. number of purchases during follow-up", x="Number of purchases during follow-up", y="Response (after - before)"))
+
+
+    plot(ggplot(responses, aes(x=total_ddd_first_drug_to_end_of_fu, y=response)) +
+        geom_point(alpha=0.5) +
+        geom_smooth(method="loess", se=TRUE, color="blue") +
+        theme_bw(base_size = 18) +
+        labs(title="response vs total DDD during follow-up", x="Total DDD during follow-up", y="Response (after - before)"))
+
+    plot(ggplot(responses, aes(x=as.factor(n_purchases_first_drug_to_end_of_fu), y=total_ddd_first_drug_to_end_of_fu)) +
+        geom_boxplot() +
+        theme_bw(base_size = 18) +
+        labs(title="Total DDD during follow-up vs number of purchases during follow-up", x="Number of purchases during follow-up", y="Total DDD during follow-up"))
+
+
+
     top10 <- responses %>% arrange(desc(.data$response)) %>% head(10)
     bottom10  <- responses %>% arrange(.data$response) %>% head(10)
 
@@ -156,19 +200,31 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
         labs(title="Trajectories of individuals with biggest response")
     ### add drug purchase times to the plot with...
     pl <- pl + geom_vline(data=drug_response$all_drug_purchases %>% 
-                filter(.data$FINNGENID %in% top10$FINNGENID & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug), linetype="dotted", colour="red")
+                filter(.data$FINNGENID %in% top10$FINNGENID & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug, linetype="DRUG_PURCHASE"), color="red") +
+                 scale_linetype_manual(name = "Annotation", values = c("DRUG_PURCHASE" = "dotted"))
+
+    if(hide_ids_in_plots){
+        pl <- pl + theme(strip.text = element_blank())
+    }
 
     plot(pl)
-
+    
     pl <- ggplot(filter(drug_response$all_measurements, .data$lab_period %in% c("Followup", "Baseline") & 
-                            .data$FINNGENID %in% bottom10$FINNGENID), aes(x=-.data$time_to_first_drug,y=.data$VALUE, colour=.data$lab_period)) +
+                            .data$FINNGENID %in% bottom10$FINNGENID), aes(x=-.data$time_to_first_drug,y=.data$VALUE, color=.data$lab_period)) +
         geom_point(size=2) +
         facet_wrap(~FINNGENID) +
         theme_minimal(base_size = 12) +
         geom_vline(xintercept=0, linetype="dashed") +
         labs(title="Trajectories of individuals with smallest response")
     pl <- pl + geom_vline(data=drug_response$all_drug_purchases %>% 
-                filter(.data$FINNGENID %in% bottom10$FINNGENID & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug), linetype="dotted", colour="red")
+                filter(.data$FINNGENID %in% bottom10$FINNGENID & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug, 
+                 linetype="DRUG_PURCHASE"), color="red") + 
+                 scale_linetype_manual(name = "Annotation", values = c("DRUG_PURCHASE" = "dotted"))  
+    
+    if(hide_ids_in_plots){
+        pl <- pl + theme(strip.text = element_blank())
+    }
+
     plot(pl)
 
     # Get unique drug labels and corresponding drug codes for per-drug plots
