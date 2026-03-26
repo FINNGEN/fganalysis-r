@@ -6,7 +6,7 @@
 \usage{
 generate_response_summary(
   lab_measurements,
-  drug_purchases,
+  drug_purchases = NULL,
   before_period,
   after_period,
   summary_function = median
