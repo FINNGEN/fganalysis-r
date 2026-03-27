@@ -50,32 +50,45 @@ The package is organized into logical modules for better maintainability:
 
 - **`connections.R`** - Database connection management
   - `connect_fgdata()` - Establishes connections to FinnGen data sources
+  - `create_mock_connection()` - Creates mock connection for testing and development
 
-- **`data_access.R`** - Data retrieval functions
+- **`data_access.R`** - Data retrieval and covariate functions
   - `get_lab_measurements()` - Retrieves lab measurement data
   - `get_drug_purchases()` - Retrieves drug purchase data
   - `get_first_purchase()` - Gets first drug purchase for each individual
+  - `join_covariates()` - Joins covariate data to any data frame with FINNGENID
+  - `join_covariates_to_labs()` - Joins covariate data specifically to lab measurements
 
 - **`drug_response_core.R`** - Core drug response analysis
   - `drug.response()` - Creates drug response S3 object
   - `create_drug_response()` - Main function for drug response analysis with period annotations
   - `generate_response_summary()` - Summarizes drug responses with baseline/followup metrics and drug purchase metadata
+  - `get_measurements_before_drug()` - Retrieves lab measurements before drug purchase for BLUP analysis
+  - `get_median_pre_drug()` - Calculates median lab values pre-medication with MAD-based outlier removal
 
 - **`visualization.R`** - Plotting and visualization functions
   - `summarize_drug_response()` - Creates comprehensive summary plots and tables with baseline/followup terminology
   - `plot_lab_value_distribution()` - Violin plot comparison of lab values at baseline and followup
+  - `plot_median_pre_drug()` - Generates diagnostic plots for median pre-drug analysis
   - `summarize_drug_purchases_upset()` - UpSet plot for drug combinations
 
 - **`blup_analysis.R`** - BLUP/Linear Mixed Model analysis
   - `calculate_blup_slopes()` - Calculates individual-specific slopes using LMM
   - `summarize_blup_results()` - Summarizes BLUP analysis results
 
+- **`drug_purchase_patterns.R`** - Drug purchase frequency analysis
+  - `compute_purchase_frequency()` - Computes intervals between purchases for a single VNR
+  - `parallel_compute_purchase_frequencies_for_VNRs()` - Parallel computation of purchase frequencies across multiple VNRs
+
 - **`qc_functions.R`** - Quality control and normalization functions
   - `inverse_rank_normalize()` - Performs inverse rank normalization on numeric vectors
   - `calculate_fixed_slopes()` - Calculates fixed-effect slopes for comparison with BLUPs
   - `process_variance_files()` - Processes variance files with inverse rank normalization
-  - `create_variance_summary_table()` - Creates summary statistics table
+  - `create_variance_summary_table()` - Creates summary statistics table from variance data
   - `generate_variance_plots()` - Generates comparison plots for variance distributions
+  - `filter_outliers_mad()` - Removes outliers using Median Absolute Deviation
+  - `winsorize_vector()` - Caps extreme values using Winsorization
+  - `smooth_measurement_intervals()` - Smooths clustered measurements within specified time intervals
 
 This modular structure makes it easier to maintain, test, and extend the package functionality.
 
@@ -111,7 +124,7 @@ The package accesses data through a centralized connection object. The connectio
 
 ### Configuration
 
-The `connect_fgdata()` function reads a JSON configuration file to set up data sources. A sample configuration file `config/db_config.json` looks like this:
+The `connect_fgdata()` function reads a JSON configuration file to set up data sources. A sample configuration file `inst/config/db_config.json` looks like this:
 
 ```json
 {
@@ -149,7 +162,7 @@ The main data tables are:
 
 ### Local Configuration
 
-For local development, you can create a `config/db_config_local.json` file with paths specific to your environment. This file is automatically ignored by git, so you can customize it without affecting the repository. The package will look for this file first, and fall back to `config/db_config.json` if it doesn't exist.
+For local development, you can create a `inst/config/db_config_local.json` file with paths specific to your environment. This file is automatically ignored by git, so you can customize it without affecting the repository. The package will look for this file first, and fall back to `inst/config/db_config.json` if it doesn't exist.
 
 Example local configuration:
 ```json
@@ -191,14 +204,11 @@ Here is a simple example of how to use the package:
 # Load the package
 
 load_all("/finngen/shared_nfs/finngen/code/fganalysis/")
-## get connection to data sources. in sanbox you can find data source configuration in /finngen/shared_nfs/finngen/code/drugResponsePackage/config/db_config_sb.json
-conn <- connect_fgdata("config/db_config.json")
-### SANDBOX
->>>>>>> master
+# Get connection to data sources. In sanbox you can use this
 conn <- connect_fgdata("/finngen/shared_nfs/finngen/code/drugResponsePackage/config/db_config_sb.json")
 
 # Or using a local config file
-conn <- connect_fgdata("config/db_config.json")
+conn <- connect_fgdata("inst/config/db_config.json")
 
 # For testing or development with small datasets, you can create a mock connection:
 # mock_conn <- create_mock_connection(
@@ -449,6 +459,11 @@ flowchart TD
   - Generates summary statistics for both original and normalized values
   - Optionally creates comparison plots showing distributions before/after normalization
   - Saves files with `_qnorm.tsv` suffix containing the normalized data
+- **`create_variance_summary_table(summary_list)`**: Creates a summary table from processed variance data with statistics for both original and normalized values
+- **`generate_variance_plots(summary_list)`**: Generates comparison plots showing distributions of original and normalized variance data
+- **`filter_outliers_mad(x, th = 3)`**: Removes outliers from a numeric vector based on Median Absolute Deviation (MAD), a robust alternative to standard deviation-based methods
+- **`winsorize_vector(x, winsorize_pct = 0.01)`**: Caps extreme values at specified percentiles to mitigate outlier influence without removing data points
+- **`smooth_measurement_intervals(df, min_interval_months = 6)`**: Smooths clustered measurements by replacing measurements closer than the specified interval with representative values (mean age, median value)
 
 ## Example Workflow
 
