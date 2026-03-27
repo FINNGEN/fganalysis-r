@@ -172,6 +172,7 @@ process_variance_files <- function(output_dir = ".", pattern = "_variance\\.tsv$
 #' @description Creates a summary table from processed variance data
 #' @param summary_list List of summary statistics from process_variance_files
 #' @return Data frame with summary statistics
+#' @export
 create_variance_summary_table <- function(summary_list) {
 
   if (length(summary_list) == 0) {
@@ -225,6 +226,7 @@ create_variance_summary_table <- function(summary_list) {
 #' @param summary_list List of summary statistics from process_variance_files
 #' @importFrom grDevices dev.new
 #' @importFrom graphics hist par text
+#' @export
 generate_variance_plots <- function(summary_list) {
 
   # Save original par settings
