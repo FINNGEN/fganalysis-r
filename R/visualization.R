@@ -25,7 +25,7 @@ create_drug_labels <- function(data) {
 
     atc_to_name_substance <- data %>%
     filter(!is.na(.data$first_drug_substance)) %>%
-    select(.data$first_drug, .data$first_drug_substance, .data$first_drug_name) %>%
+    select("first_drug", "first_drug_substance", "first_drug_name") %>%
     distinct() %>%
     group_by(.data$first_drug) %>%
     summarise(
@@ -40,7 +40,7 @@ create_drug_labels <- function(data) {
         ## do not overwrite existing names as they can be different but substance should be same for same ATC code
         first_drug_name = .data$map_first_drug_name,
         first_drug_substance = ifelse(!is.na(.data$first_drug_substance), .data$first_drug_substance, .data$map_first_drug_substance)
-    ) %>% select(-.data$map_first_drug_name, -.data$map_first_drug_substance)
+    ) %>% select(-"map_first_drug_name", -"map_first_drug_substance")
 
 
     if ("first_drug_substance" %in% colnames(data)) {
@@ -96,7 +96,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
     per_drug <- responses %>%
         group_by(.data$first_drug, .data$drug_label ) %>%
         summarise(
-            N = n(), p = summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4], sd = sd(.data$response),
+            N = n(), p = summary(lm("response ~ 1", data = pick("FINNGENID", "response")))$coefficients[1, 4], sd = sd(.data$response),
             response = mean(.data$response),
             purch_age_dist = quant_text(.data$baseline_age),
             .groups = "drop"
@@ -110,7 +110,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
 
     write.table(
         all_resp %>% arrange(desc(.data$N)) %>%
-            select(.data$first_drug,.data$drug_label, .data$N, .data$response, .data$p, .data$purch_age_dist),
+            select("first_drug","drug_label", "N", "response", "p", "purch_age_dist"),
         paste0(out_file_prefix, "_responses_by_drug.txt"),
         sep = "\t", row.names = FALSE, quote = FALSE
     )
@@ -119,11 +119,11 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
     plot(ggtexttable(responses %>% group_by(.data$drug_label,.data$first_drug) %>%
         summarise(
             n_purch = n(), n_indiv = length(unique(.data$FINNGENID)),
-            p = summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4],
+            p = summary(lm("response ~ 1", data = pick("FINNGENID", "response")))$coefficients[1, 4],
             response = mean(.data$response),
             purch_age_dist = quant_text(.data$baseline_age),
         ) %>%
-        select(.data$drug_label, .data$n_purch, .data$response, .data$p, .data$purch_age_dist) %>%
+        select("drug_label", "n_purch", "response", "p", "purch_age_dist") %>%
         arrange(desc(.data$n_purch))))
 
 
@@ -143,7 +143,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
 
     # Get unique drug labels and corresponding drug codes for per-drug plots
     drug_mapping <- responses %>% 
-        select(.data$first_drug, .data$drug_label) %>% 
+        select("first_drug", "drug_label") %>% 
         distinct()
 
     for(i in 1:nrow(drug_mapping)){

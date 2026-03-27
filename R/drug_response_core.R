@@ -180,7 +180,7 @@ create_drug_response <- function(conn, lablist, druglist,
     ## happened during response period.
     drug_purchases <- drug_purchases %>%
         dplyr::left_join(dr_first_purchase %>% 
-        dplyr::select(.data$FINNGENID, first_drug_age = .data$first_drug_age), by = "FINNGENID") %>%
+        dplyr::select("FINNGENID", "first_drug_age"), by = "FINNGENID") %>%
         dplyr::mutate(time_to_first_drug =  .data$first_drug_age - .data$EVENT_AGE)
 
 
