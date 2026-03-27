@@ -1,6 +1,10 @@
 #' @import foreach
 #' @import doParallel
 #' @importFrom parallel detectCores makeCluster stopCluster
+NULL
+
+# Declare global variables to avoid R CMD check notes
+utils::globalVariables(c("vnr"))
 
 #' @title Function to compute purchase frequencies for all VNRs in parallel. 
 #' @description Calls compute_purchase_frequency for each VNR, check that function for details of computation

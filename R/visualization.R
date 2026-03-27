@@ -4,7 +4,7 @@
 #' @import UpSetR
 #' @import utils
 #' @import tidyr
-#' @importFrom stats lm quantile sd
+#' @importFrom stats lm quantile sd na.omit
 NULL
 
 #' Helper function to create quantile text

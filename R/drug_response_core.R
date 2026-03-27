@@ -7,7 +7,8 @@
 NULL
 
 # Declare global variables to avoid R CMD check notes
-utils::globalVariables(c("FINNGENID", "EVENT_AGE", "first_drug_age", "time_to_drug"))
+utils::globalVariables(c("FINNGENID", "EVENT_AGE", "first_drug_age", "time_to_drug", 
+                          "baseline_idx", "followup_idx"))
 
 #' @title Filter external lab measurements
 #' @description Internal helper function to filter external lab data
