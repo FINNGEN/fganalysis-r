@@ -7,7 +7,7 @@
 NULL
 
 # Declare global variables to avoid R CMD check notes
-utils::globalVariables(c("FINNGENID", "fixed_slope"))
+utils::globalVariables(c("FINNGENID", "fixed_slope", "VALUE", "time_diff", "cluster_id"))
 
 #' @title Inverse Rank Normalize Values
 #' @description Performs inverse rank normalization on a numeric vector
@@ -172,6 +172,7 @@ process_variance_files <- function(output_dir = ".", pattern = "_variance\\.tsv$
 #' @description Creates a summary table from processed variance data
 #' @param summary_list List of summary statistics from process_variance_files
 #' @return Data frame with summary statistics
+#' @export
 create_variance_summary_table <- function(summary_list) {
 
   if (length(summary_list) == 0) {
@@ -225,6 +226,7 @@ create_variance_summary_table <- function(summary_list) {
 #' @param summary_list List of summary statistics from process_variance_files
 #' @importFrom grDevices dev.new
 #' @importFrom graphics hist par text
+#' @export
 generate_variance_plots <- function(summary_list) {
 
   # Save original par settings

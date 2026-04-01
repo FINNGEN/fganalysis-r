@@ -7,7 +7,8 @@
 NULL
 
 # Declare global variables to avoid R CMD check notes
-utils::globalVariables(c("FINNGENID", "EVENT_AGE", "first_drug_age", "time_to_drug"))
+utils::globalVariables(c("FINNGENID", "EVENT_AGE", "first_drug_age", "time_to_drug", 
+                          "baseline_idx", "followup_idx"))
 
 #' @title Filter external lab measurements
 #' @description Internal helper function to filter external lab data
@@ -233,7 +234,7 @@ create_drug_response <- function(conn, lablist, druglist,
     ## happened during response period.
     drug_purchases <- drug_purchases %>%
         dplyr::left_join(dr_first_purchase %>% 
-        dplyr::select(.data$FINNGENID, first_drug_age = .data$first_drug_age), by = "FINNGENID") %>%
+        dplyr::select("FINNGENID", "first_drug_age"), by = "FINNGENID") %>%
         dplyr::mutate(time_to_first_drug =  .data$first_drug_age - .data$EVENT_AGE)
 
 
