@@ -54,13 +54,15 @@ create_drug_labels <- function(data) {
 }
 
 
+
 #' @title Summarize drug response
 #' @description Summarize drug response data created with create_drug_response. writes plots and tables to disk
 #' @param drug_response drug.response object
 #' @param out_file_prefix prefix for output files
+#' @param hide_ids_in_plots logical, whether to hide FINNGEN IDs in the individual trajectory plots. Default is TRUE.
 #' @return NULL
 #' @export
-summarize_drug_response <- function(drug_response, out_file_prefix) {
+summarize_drug_response <- function(drug_response, out_file_prefix, hide_ids_in_plots = TRUE) {
     labs <- drug_response$all_measurements %>% filter(!is.na(.data$VALUE))
     responses <- drug_response$responses %>% filter(!is.na(.data$response))
     drugs <- drug_response$all_drug_purchases
@@ -78,19 +80,30 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
 
     inds_in_analysis <- nrow(responses )
 
-    n_range_baseline <- quant_text(responses$n_baseline)    
-    n_range_followup <- quant_text(responses$n_followup)
+    n_range_before <- quant_text(responses$n_baseline)
+    n_range_after <- quant_text(responses$n_followup)
 
     range_baseline_age <- quant_text(responses$baseline_age)
 
     n_no_pre <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_baseline == 0)
     n_no_pos <- drug_response$responses %>% filter(is.na(.data$response) & .data$n_followup == 0)
 
-    plot(ggtexttable(data.frame(
+    ns_table <- ggtexttable(data.frame(
         "Group" = c("labs", "drugs", "in analysis", "no_pre_value", "no_post_value"),
         "N" = c(inds_with_lab, inds_with_drugs, inds_in_analysis, nrow(n_no_pre), nrow(n_no_pos)),
         "N events" = c(n_lab_meas, n_drugs_meas, inds_in_analysis, sum(n_no_pre$n_followup), sum(n_no_pos$n_baseline))
-    ), rows = NULL))
+    ), rows = NULL) %>% tab_add_title(text="Summary of data available")
+
+    ### create table of mean response and quantiles for raw response and response percent.
+    resps <- rbind( summary(responses$response), summary(responses$response_percent))
+    row.names(resps) <- c("Response", "Response Percent")
+
+    resp_Table <- ggtexttable(format(resps, digits=2), theme = ttheme("light")) %>%
+        tab_add_title(text="Response summary statistics")
+
+    plot(ggarrange(ns_table, resp_Table, nrow = 2))
+    
+
 
     per_drug <- responses %>%
         group_by(.data$first_drug, .data$drug_label ) %>%
@@ -113,17 +126,26 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
         paste0(out_file_prefix, "_responses_by_drug.txt"),
         sep = "\t", row.names = FALSE, quote = FALSE
     )
-
-
+    
     plot(ggtexttable(responses %>% group_by(.data$drug_label,.data$first_drug) %>%
         summarise(
             n_purch = n(), n_indiv = length(unique(.data$FINNGENID)),
-            p = summary(lm("response ~ 1", data = pick("FINNGENID", "response")))$coefficients[1, 4],
-            response = mean(.data$response),
+            p = format(summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4], digits=2),
+            response = format(mean(.data$response), digits=2),
             purch_age_dist = quant_text(.data$baseline_age),
         ) %>%
-        select("drug_label", "n_purch", "response", "p", "purch_age_dist") %>%
-        arrange(desc(.data$n_purch))))
+        select(.data$drug_label, .data$n_purch, .data$response, .data$p, .data$purch_age_dist) %>%
+        arrange(desc(.data$n_purch)))) + labs(title="Summary of response by drug label (ATC code + substance)")
+
+    plot(ggtexttable(responses %>% group_by(.data$first_drug_substance) %>%
+        summarise(
+            n_purch = n(), n_indiv = length(unique(.data$FINNGENID)),
+            p = format(summary(lm("response ~ 1", data = pick(.data$FINNGENID, .data$response)))$coefficients[1, 4], digits=2),
+            response = format(mean(.data$response), digits=2),
+            purch_age_dist = quant_text(.data$baseline_age),
+        ) %>%
+        select(.data$first_drug_substance, .data$n_purch, .data$response, .data$p, .data$purch_age_dist) %>%
+        arrange(desc(.data$n_purch)))) + labs(title="Summary of response by drug substance")
 
 
     begin <- ceiling(max(min(-labs$time_to_first_drug, na.rm = TRUE), drug_response$lab_response_period$before_period[1]))
@@ -139,6 +161,78 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
         ggtitle("Lab measurements before and after drug purchase")) + theme_bw() +
         theme(axis.text.x = element_text(angle = 45, size = 20)) 
 
+     
+    plot(ggplot(responses, aes(x=n_purchases_first_drug_to_end_of_fu)) +
+        geom_histogram(binwidth=1) +
+        theme_bw(base_size = 18) +
+        labs(title="Total purchases during follow-up", x="Number of purchases during follow-up", y="Count"))
+
+    plot(ggplot(responses, aes(x=total_ddd_first_drug_to_end_of_fu)) +
+        geom_histogram(binwidth=20) +
+        theme_bw(base_size = 18) +
+        labs(title="Total DDD during follow-up", x="Total DDD during follow-up", y="Count"))
+
+    plot(ggplot(responses, aes(x=as.factor(n_purchases_first_drug_to_end_of_fu), y=response)) +
+        geom_boxplot() +
+        geom_point(alpha=0.5) +
+        geom_smooth(method="lm") +
+        theme_bw(base_size = 18) +
+        labs(title="Response vs. number of purchases during follow-up", x="Number of purchases during follow-up", y="Response (after - before)"))
+
+
+    plot(ggplot(responses, aes(x=total_ddd_first_drug_to_end_of_fu, y=response)) +
+        geom_point(alpha=0.5) +
+        geom_smooth(method="loess", se=TRUE, color="blue") +
+        theme_bw(base_size = 18) +
+        labs(title="response vs total DDD during follow-up", x="Total DDD during follow-up", y="Response (after - before)"))
+
+    plot(ggplot(responses, aes(x=as.factor(n_purchases_first_drug_to_end_of_fu), y=total_ddd_first_drug_to_end_of_fu)) +
+        geom_boxplot() +
+        theme_bw(base_size = 18) +
+        labs(title="Total DDD during follow-up vs number of purchases during follow-up", x="Number of purchases during follow-up", y="Total DDD during follow-up"))
+
+
+
+    top10 <- responses %>% arrange(desc(.data$response)) %>% head(10)
+    bottom10  <- responses %>% arrange(.data$response) %>% head(10)
+
+    ### visualize top and bottom lab value responders with line plot of measurement trajectories before and after drug purchase with time to drug purchase on x axis and measurement on y axis, facet by FINNGENID and color by lab period (baseline vs followup) 
+    pl <- ggplot(filter(drug_response$all_measurements, .data$lab_period %in% c("Followup", "Baseline") & 
+                            FINNGENID %in% top10$FINNGENID), 
+                            aes(x=-time_to_first_drug,y=VALUE, colour=lab_period)) +
+        geom_point(size=2) +
+        facet_wrap(~FINNGENID) +
+        theme_minimal(base_size = 12) +
+        geom_vline(xintercept=0, linetype="dashed") +
+        labs(title="Trajectories of individuals with biggest response")
+    ### add drug purchase times to the plot with...
+    pl <- pl + geom_vline(data=drug_response$all_drug_purchases %>% 
+                filter(.data$FINNGENID %in% top10$FINNGENID & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug, linetype="DRUG_PURCHASE"), color="red") +
+                 scale_linetype_manual(name = "Annotation", values = c("DRUG_PURCHASE" = "dotted"))
+
+    if(hide_ids_in_plots){
+        pl <- pl + theme(strip.text = element_blank())
+    }
+
+    plot(pl)
+    
+    pl <- ggplot(filter(drug_response$all_measurements, .data$lab_period %in% c("Followup", "Baseline") & 
+                            .data$FINNGENID %in% bottom10$FINNGENID), aes(x=-.data$time_to_first_drug,y=.data$VALUE, color=.data$lab_period)) +
+        geom_point(size=2) +
+        facet_wrap(~FINNGENID) +
+        theme_minimal(base_size = 12) +
+        geom_vline(xintercept=0, linetype="dashed") +
+        labs(title="Trajectories of individuals with smallest response")
+    pl <- pl + geom_vline(data=drug_response$all_drug_purchases %>% 
+                filter(.data$FINNGENID %in% bottom10$FINNGENID & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug, 
+                 linetype="DRUG_PURCHASE"), color="red") + 
+                 scale_linetype_manual(name = "Annotation", values = c("DRUG_PURCHASE" = "dotted"))  
+    
+    if(hide_ids_in_plots){
+        pl <- pl + theme(strip.text = element_blank())
+    }
+
+    plot(pl)
 
     # Get unique drug labels and corresponding drug codes for per-drug plots
     drug_mapping <- responses %>% 
@@ -209,11 +303,41 @@ summarize_drug_response <- function(drug_response, out_file_prefix) {
         geom_point() +
         geom_smooth(method = "lm") +
         geom_abline(slope = 1) +
-        ggtitle(paste0("Baseline vs. followup values. Slope: ", slope, " R2: ", r2, " p: ", p))))
+        ggtitle(paste0("Baseline vs. follow-up values. Slope: ", slope, " R2: ", r2, " p: ", p))))
 
     dev.off()
 
     print(paste0("Created summary plots and tables with prefix: ", out_file_prefix))
+}
+
+#' @title Visualize Individual Trajectory of Lab Values
+#' @description Plots the trajectory of lab values for a specific individual (FINNGEN
+#' ID) over time, with time to drug purchase on the x-axis and lab measurement on the y-axis.
+#' The plot includes a dashed vertical line at the time of drug purchase (time_to_drug = 0) and dotted vertical lines for each drug purchase during follow-up.
+#' @param drug_response A `drug.response` object containing the data to visualize.
+#' @param finngen_id The FINNGEN ID of the individual to visualize.
+#' @return A `ggplot` object showing the trajectory of lab values for the specified individual.
+#' @export
+visualize_individual_trajectory <- function(drug_response, finngen_id) {
+    if (!inherits(drug_response, "drug.response")) {
+        stop("Input must be a drug.response object.")
+    }
+
+    checkmate::assertString(finngen_id)
+    
+    individual_data <- drug_response$all_measurements %>% filter(.data$FINNGENID == finngen_id)
+    resp <- drug_response$responses %>% filter(.data$FINNGENID == finngen_id) %>% select(.data$response) %>% pull()
+    p <- ggplot(individual_data, aes(x = -time_to_drug, y = VALUE)) +
+        geom_line() +
+        geom_point() +
+        geom_vline(xintercept = 0, linetype = "dashed") +
+        labs(title = paste("Trajectory of lab values for FINNGENID:", finngen_id, ". Response:", round(resp, 2)),
+                x = "Time to drug purchase (years)",
+                y = "Lab measurement") +
+        theme_minimal()
+    p <- p + geom_vline(data=drug_response$all_drug_purchases %>% 
+                filter(.data$FINNGENID == finngen_id & .data$purchase_period=="Followup"), aes(xintercept=-.data$time_to_first_drug), linetype="dotted", colour="red")
+    return(p)
 }
 
 

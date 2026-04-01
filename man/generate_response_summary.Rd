@@ -9,7 +9,7 @@ generate_response_summary(
   drug_purchases = NULL,
   before_period,
   after_period,
-  summary_function = median
+  summary_functions = list(summary_median, summary_median)
 )
 }
 \arguments{
@@ -21,7 +21,7 @@ generate_response_summary(
 
 \item{after_period}{vector with two elements, start and end of the after period}
 
-\item{summary_function}{function to summarize the lab measurements (default is median)}
+\item{summary_functions}{A list of two functions to summarize the lab measurements (default is list(summary_median, summary_median)). The first function is used for baseline summary and the second for followup summary.}
 }
 \value{
 data frame with response summary
