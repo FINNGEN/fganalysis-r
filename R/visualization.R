@@ -316,7 +316,7 @@ summarize_drug_response <- function(drug_response, out_file_prefix, hide_ids_in_
 #' ID) over time, with time to drug purchase on the x-axis and lab measurement on the y-axis.
 #' The plot includes a dashed vertical line at the time of drug purchase (time_to_drug = 0) and dotted vertical lines for each drug purchase during follow-up.
 #' @param drug_response A `drug.response` object containing the data to visualize.
-#' @param fingen_id The FINNGEN ID of the individual to visualize.
+#' @param finngen_id The FINNGEN ID of the individual to visualize.
 #' @return A `ggplot` object showing the trajectory of lab values for the specified individual.
 #' @export
 visualize_individual_trajectory <- function(drug_response, finngen_id) {
