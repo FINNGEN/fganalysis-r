@@ -25,11 +25,17 @@ pdf(output_pdf)
     print(ggplot(ext_anthrop, aes(x=SYSTOLIC_BP, y=DIASTOLIC_BP)) + geom_point())
 dev.off()
 
-## prim out has 392 the wrong way around.
-wrong <- filter(ext_anthrop, SYSTOLIC_BP < DIASTOLIC_BP)
-ext_anthrop %>% mutate(SYSTOLIC_BP=if_else(SYSTOLIC_BP < DIASTOLIC_BP, DIASTOLIC_BP, SYSTOLIC_BP),
-                       DIASTOLIC_BP=if_else(SYSTOLIC_BP < DIASTOLIC_BP, SYSTOLIC_BP, DIASTOLIC_BP)) ->
-                       ext_anthrop
+## prim_out has a small proportion of BP measurements the wrong way around
+message(sprintf(
+   "Swapping systolic/diastolic blood pressure values for %d rows.",
+   nrow(filter(ext_anthrop, SYSTOLIC_BP < DIASTOLIC_BP))
+))
+ext_anthrop %>% mutate(SYSTOLIC_BP_OLD=SYSTOLIC_BP,
+                       SYSTOLIC_BP=if_else(SYSTOLIC_BP_OLD < DIASTOLIC_BP, DIASTOLIC_BP, SYSTOLIC_BP_OLD),
+                       DIASTOLIC_BP=if_else(SYSTOLIC_BP_OLD < DIASTOLIC_BP, SYSTOLIC_BP_OLD, DIASTOLIC_BP)
+                ) %>%
+                select(SYSTOLIC_BP_OLD) ->
+                ext_anthrop
 
 ext_anthrop %>% filter(!(is.na(WEIGHT) & is.na(HEIGHT) & is.na(BMI) & is.na(SMOKING) & is.na(AUDIT_FULL) &
                          is.na(SYSTOLIC_BP) & is.na(DIASTOLIC_BP))) -> ext_anthrop

@@ -73,7 +73,7 @@ duckdb -c "COPY (select * from read_csv('$in_cov_pheno_local', delim='\t', nulls
 # 5. endpoint - first convert from wide to long
 echo -e "\n[5/8] Wide endpoints to long format"
 in_endpoint_local=$(basename "$in_endpoint")
-tmp_endpoint=$(mktemp --suffix =.txt.gz)
+tmp_endpoint=$(mktemp --suffix=.txt.gz)
 trap 'rm -f "${tmp_endpoint}"' EXIT
 
 zcat "${in_endpoint_local}" | awk '

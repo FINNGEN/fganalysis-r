@@ -77,8 +77,8 @@ DBI::dbExecute(conn, \"
    COPY (
       SELECT * FROM read_csv('${in_minimum}', delim='\t', nullstr='NA')
    )
-   TO '${out_minimum}.parquet
-   (${PARQUET_OPTS} )
+   TO '${out_minimum}.parquet'
+   (${PARQUET_OPTS})
 \")
 "
 
@@ -102,7 +102,7 @@ DBI::dbExecute(conn, \"
 echo -e "\n[5/8] Wide endpoints to long format"
 # /dev/stdin doesn't work here because Rscript -- vanilla - already consumes stdin
 # for the heredoc. Write awk output to a named temp file instead.
-tmp_endpoint=$(mktemp --suffix =.txt.gz)
+tmp_endpoint=$(mktemp --suffix=.txt.gz)
 trap 'rm -f "${tmp_endpoint}"' EXIT
 
 zcat "${in_endpoint}" | awk '
@@ -174,7 +174,7 @@ python process_drugs.py \
 run_duckdb "
 DBI::dbExecute(conn, \"
    COPY (
-      SELECT * FROM read_csv(${out_drug_events}.tsv.gz', delim='\t', nullstr=['NA', ''], all_varchar=TRUE)
+      SELECT * FROM read_csv('${out_drug_events}.tsv.gz', delim='\t', nullstr=['NA', ''], all_varchar=TRUE)
       ORDER BY ATC
    )
    TO '${out_drug_events}.parquet'

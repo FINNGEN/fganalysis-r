@@ -113,8 +113,7 @@ install.packages("/usr/finngen-repos/cran/source/src/contrib/duckdbfs_0.1.0.tar.
 
 library(devtools)
 load_all("/finngen/library-green/code/fganalysis/")
-conn <- connect_fgdata("/finngen/shared_nfs/Resources/fganalysis/R14/db_config_sb_R14.json")
-
+conn <- connect_fgdata("/finngen/shared_nfs/Resources/fganalysis/R14/db_config_sb_r14.json")
 
 ```
 
@@ -162,7 +161,7 @@ The main data tables are:
 
 ### Local Configuration
 
-For local development, you can create a `inst/config/db_config_local.json` file with paths specific to your environment. This file is automatically ignored by git, so you can customize it without affecting the repository. The package will look for this file first, and fall back to `inst/config/db_config.json` if it doesn't exist.
+For local development, you can create a `inst/config/db_config_local.json` file with paths specific to your environment. This file is automatically ignored by git, so you can customize it without affecting the repository.
 
 Example local configuration:
 ```json
@@ -181,11 +180,11 @@ Example local configuration:
 ### Connecting to Data
 
 To establish a connection, pass the path to your configuration file to `connect_fgdata`:
-
 ```R
-# The path can be relative or absolute
-# In the FinnGen Sandbox, a pre-configured file is available (see above)
-=======
+conn <- connect_fgdata("/path/to/fganalysis/inst/config/db_config_local.json")
+```
+The path can be relative or absolute. In the FinnGen Sandbox, a pre-configured file is available (see above)
+
 ## Usage
 
 ### Functions
@@ -934,10 +933,10 @@ The script `scripts/prepare_data_refinery.sh` is written for use outside of the 
 To use this script:
 1. Ensure `duckdb`, `python` (v3.0 or higher) and `R` (with libraries `dplyr`, `ggplot2` and `data.table`) are installed
 2. Copy `scripts/prepare_data_refinery.sh` to your chosen directory
-3. Copy `scripts/process_hilmo_avohilmo.R` and `scripts/process_drugs.R` to your chosen directory
+3. Copy `scripts/process_hilmo_avohilmo.R` and `scripts/process_drugs.py` to your chosen directory
 4. Copy `file_locations_rX.template.txt` to your chosen directory and edit with the location of the required input files
 5. Edit the line starting with `source` in your copied `prepare_data_refinery.sh` so that it sources the edited file locations file
-6. `cd` to your chosen directory (if not already there), add exectutable permission to your copied `prepare_data_refinery.sh` and run using `./prepare_data_refinery.sh`. Depending on system resources and download speed, the process may take several hours.
+6. `cd` to your chosen directory (if not already there), add executable permission to your copied `prepare_data_refinery.sh` and run using `./prepare_data_refinery.sh`. Depending on system resources and download speed, the process may take several hours.
 7. Once the required (.parquet and .tsv) files are generated, upload them to the relevant bucket and use the config template at `inst/config/db_config.template.json` to create an updated config file.
 
 #### Within FinnGen sandbox
@@ -946,10 +945,10 @@ The script `prepare_data_sandbox.sh` is intended for use within the FinnGen sand
 To use this script:
 1. Create an instance of the largest virtual machine (16 CPUs, 128 GB memory)
 2. Ensure that R libraries `duckdb`, `dplyr`, `ggplot2` and `data.table` are installed
-3. Copy `prepare_data_sandbox.sh`, `process_hilmo_avohilmo.R`, `process_drugs.R` and `file_locations_rX.template.txt` from `/finngen/shared_nfs/finngen/code/fganalysis/scripts/` to your chosen directory
+3. Copy `prepare_data_sandbox.sh`, `process_hilmo_avohilmo.R`, `process_drugs.py` and `file_locations_rX.template.txt` from `/finngen/shared_nfs/finngen/code/fganalysis/scripts/` to your chosen directory
 4. Edit the copied `file_locations_rX.template.txt` to point to the input files corresponding to the latest release
 5. Edit the line starting with `source` in your copied `prepare_data_sandbox.sh` so that it sources the edited file locations file
-6. In the terminal, `cd` to your chosen directory (if not already there), add exectutable permission to your copied `prepare_data_sandbox.sh` and run using `./prepare_data_sandbox.sh`. The script may take up to 3 hours to run. 
+6. In the terminal, `cd` to your chosen directory (if not already there), add executable permission to your copied `prepare_data_sandbox.sh` and run using `./prepare_data_sandbox.sh`. The script may take up to 3 hours to run. 
 7. Copy the output .parquet and .tsv files to `/finngen/shared_nfs/Resources/fganalysis/RX/`, where `X` is the release number (create the directory first if it doesn't exist)
 8. Create a copy of `/finngen/shared_nfs/finngen/code/fganalysisinst/config/db_config_sb.template.json` and name it `db_config_sb_rX.json` (where `X` is the release number), then edit the paths to point to the files copied in the previous step. Then copy `db_config_sb_rX.json` to `/finngen/shared_nfs/Resources/fganalysis/RX/`.
 
