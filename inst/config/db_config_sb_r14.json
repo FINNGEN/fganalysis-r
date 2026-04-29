@@ -1,0 +1,37 @@
+{
+    "pheno": {
+        "path": "/finngen/shared_nfs/Resources/fganalysis/R14/finngen_R14_service_sector_detailed_longitudinal_1.0.parquet",
+        "type": "parquet-hive"
+    },
+    "labs": {
+        "path": "/finngen/shared_nfs/Resources/fganalysis/R14/finngen_R14_kanta_lab_1.0.parquet",
+        "type": "parquet"
+    },
+    "minimum": {
+        "path": "/finngen/shared_nfs/Resources/fganalysis/R14/finngen_R14_minimum_extended_1.0.parquet",
+        "type": "parquet"
+    },
+    "cov_pheno": {
+        "path": "/finngen/shared_nfs/Resources/fganalysis/R14/R14_COV_PHENO_V0.parquet",
+        "type": "parquet"
+    },
+    "endpoint": {
+        "path": "/finngen/shared_nfs/Resources/fganalysis/R14/finngen_R14_endpoint_2.0_longformat.parquet",
+        "type": "parquet"
+    },
+    "vnr":{
+        "path":  "/finngen/shared_nfs/Resources/fganalysis/R14/VNR_fi_2.0_dedup.tsv",
+        "type": "tsv",
+        "recodings": [{"column":"VNR", "function": "as.character"}],
+        "colclasses": {"VNR": "character"}
+    },
+    "long_anthropometric": {
+        "path": "/finngen/shared_nfs/Resources/fganalysis/R14/finngen_R14_hilmo_avohilmo_extended_1.0_dedup_fixbp.parquet",
+        "type": "parquet"
+    },
+        "drug_events": {
+        "path": "/finngen/shared_nfs/Resources/fganalysis/R14/finngen_R14_drug_events_1.0.simple.parquet",
+        "type": "parquet"
+    }
+}
+

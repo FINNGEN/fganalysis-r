@@ -1,0 +1,36 @@
+{
+    "pheno": {
+        "path": " gs://path/to/data/pheno.dirname.parquet",
+        "type": "parquet-hive"
+    },
+    "labs": {
+        "path": " gs://path/to/data/labs.filename.parquet",
+        "type": "parquet"
+    },
+    "minimum": {
+        "path": " gs://path/to/data/minimum.filename.parquet",
+        "type": "parquet"
+    },
+    "cov_pheno": {
+        "path": " gs://path/to/data/cov_pheno.filename.parquet",
+        "type": "parquet"
+    },
+    "endpoint": {
+        "path": " gs://path/to/data/endpoint.filename.parquet",
+        "type": "parquet"
+    },
+    "vnr": {
+        "path": " gs://path/to/data/vnr.filename.tsv",
+        "type": "tsv",
+        "recodings": [{"column":"VNR", "function": "as.character"}],
+        "colclasses": {"VNR": "character"}
+    },
+    "long_anthropometric": {
+        "path": " gs://path/to/data/long_anthropometric.filename.parquet",
+        "type": "parquet"
+    },
+        "drug_events": {
+        "path": " gs://path/to/data/drug_events.filename.parquet",
+        "type": "parquet"
+    }
+}
