@@ -204,7 +204,7 @@ Here is a simple example of how to use the package:
 
 load_all("/finngen/shared_nfs/finngen/code/fganalysis/")
 # Get connection to data sources. In sandbox, to load the latest data (R14), use
-conn <- connect_fgdata("/finngen/shared_nfs/Resources/fganalysis/R14/db_config_sb_R14.json")
+conn <- connect_fgdata("/finngen/shared_nfs/Resources/fganalysis/R14/db_config_sb_r14.json")
 
 # Or using a local config file
 conn <- connect_fgdata("inst/config/db_config_local.json")
@@ -950,7 +950,7 @@ To use this script:
 5. Edit the line starting with `source` in your copied `prepare_data_sandbox.sh` so that it sources the edited file locations file
 6. In the terminal, `cd` to your chosen directory (if not already there), add executable permission to your copied `prepare_data_sandbox.sh` and run using `./prepare_data_sandbox.sh`. The script may take up to 3 hours to run. 
 7. Copy the output .parquet and .tsv files to `/finngen/shared_nfs/Resources/fganalysis/RX/`, where `X` is the release number (create the directory first if it doesn't exist)
-8. Create a copy of `/finngen/shared_nfs/finngen/code/fganalysisinst/config/db_config_sb.template.json` and name it `db_config_sb_rX.json` (where `X` is the release number), then edit the paths to point to the files copied in the previous step. Then copy `db_config_sb_rX.json` to `/finngen/shared_nfs/Resources/fganalysis/RX/`.
+8. Create a copy of `/finngen/shared_nfs/finngen/code/fganalysis/inst/config/db_config_sb.template.json` and name it `db_config_sb_rX.json` (where `X` is the release number), then edit the paths to point to the files copied in the previous step. Then copy `db_config_sb_rX.json` to `/finngen/shared_nfs/Resources/fganalysis/RX/`.
 
 ### Running Tests
 

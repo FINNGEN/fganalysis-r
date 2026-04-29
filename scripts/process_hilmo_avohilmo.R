@@ -34,7 +34,7 @@ ext_anthrop %>% mutate(SYSTOLIC_BP_OLD=SYSTOLIC_BP,
                        SYSTOLIC_BP=if_else(SYSTOLIC_BP_OLD < DIASTOLIC_BP, DIASTOLIC_BP, SYSTOLIC_BP_OLD),
                        DIASTOLIC_BP=if_else(SYSTOLIC_BP_OLD < DIASTOLIC_BP, SYSTOLIC_BP_OLD, DIASTOLIC_BP)
                 ) %>%
-                select(SYSTOLIC_BP_OLD) ->
+                select(-SYSTOLIC_BP_OLD) ->
                 ext_anthrop
 
 ext_anthrop %>% filter(!(is.na(WEIGHT) & is.na(HEIGHT) & is.na(BMI) & is.na(SMOKING) & is.na(AUDIT_FULL) &

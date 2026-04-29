@@ -158,7 +158,7 @@ DBI::dbExecute(conn, \"
    COPY (
       SELECT * FROM read_csv('${out_anthrop}.txt.gz', delim='\t', nullstr='NA' )
    )
-   TO '${out_anthrop} . parquet'
+   TO '${out_anthrop}.parquet'
    (${PARQUET_OPTS})
 \")
 "
