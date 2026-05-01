@@ -122,6 +122,98 @@ summary_min <- function(lab_values) {
 }
 
 
+#' @title Annotate drug purchases with effective DDDs accounting for dose-dispensing
+#' @description Adds `prev_gap_days`, `is_dose_dispensing`, and `effective_ddd`
+#' columns to a drug purchases data frame. Purchases whose previous purchase by
+#' the same individual occurred within
+#' `dose_dispensing_window_days +/- dose_dispensing_tolerance_days` days are
+#' flagged as dose-dispensed (Finnish pharmacy "annosjakelu"). For those
+#' purchases the recorded N_PACKS/DDDPerPack overstate the dispensed amount, so
+#' `effective_ddd` is replaced with
+#' `dose_dispensing_window_days * assumed_daily_pills * DDDPerPack / PackageSize`.
+#' All other purchases get `effective_ddd = N_PACKS * DDDPerPack` (with N_PACKS
+#' imputed to 1 when missing), matching the existing raw DDD calculation.
+#' @param drug_purchases Data frame with at least FINNGENID and
+#' APPROX_EVENT_DAY columns. DDDPerPack, PackageSize, and N_PACKS are used when
+#' present; otherwise corresponding outputs may be NA.
+#' @param dose_dispensing_window_days Numeric, expected dispensing window in
+#' days (default 14).
+#' @param dose_dispensing_tolerance_days Numeric, symmetric tolerance around the
+#' window for classifying a purchase as dose-dispensed (default 3).
+#' @param assumed_daily_pills Numeric, pills per day assumed during dose
+#' dispensing (default 1).
+#' @return The input data frame with three added columns: `prev_gap_days`,
+#' `is_dose_dispensing`, and `effective_ddd`.
+#' @export
+annotate_effective_ddd <- function(drug_purchases,
+                                   dose_dispensing_window_days = 14,
+                                   dose_dispensing_tolerance_days = 3,
+                                   assumed_daily_pills = 1) {
+    assertNumber(dose_dispensing_window_days, lower = 1)
+    assertNumber(dose_dispensing_tolerance_days, lower = 0)
+    assertNumber(assumed_daily_pills, lower = 0)
+
+    if (nrow(drug_purchases) == 0) {
+        drug_purchases$prev_gap_days <- numeric(0)
+        drug_purchases$is_dose_dispensing <- logical(0)
+        drug_purchases$effective_ddd <- numeric(0)
+        return(drug_purchases)
+    }
+
+    required_cols <- c("FINNGENID", "APPROX_EVENT_DAY")
+    missing_cols <- setdiff(required_cols, colnames(drug_purchases))
+    if (length(missing_cols) > 0) {
+        stop("annotate_effective_ddd: drug_purchases is missing required columns: ",
+             paste(missing_cols, collapse = ", "))
+    }
+
+    has_ddd <- "DDDPerPack" %in% colnames(drug_purchases)
+    has_pack_size <- "PackageSize" %in% colnames(drug_purchases)
+    has_n_packs <- "N_PACKS" %in% colnames(drug_purchases)
+
+    n_packs_imputed <- if (has_n_packs) {
+        ifelse(!is.na(drug_purchases$N_PACKS), drug_purchases$N_PACKS, 1)
+    } else {
+        rep(1, nrow(drug_purchases))
+    }
+
+    drug_purchases <- drug_purchases %>%
+        dplyr::arrange(.data$FINNGENID, .data$APPROX_EVENT_DAY) %>%
+        dplyr::group_by(.data$FINNGENID) %>%
+        dplyr::mutate(prev_gap_days = as.numeric(
+            .data$APPROX_EVENT_DAY - dplyr::lag(.data$APPROX_EVENT_DAY)
+        )) %>%
+        dplyr::ungroup()
+
+    lower <- dose_dispensing_window_days - dose_dispensing_tolerance_days
+    upper <- dose_dispensing_window_days + dose_dispensing_tolerance_days
+
+    drug_purchases$is_dose_dispensing <- !is.na(drug_purchases$prev_gap_days) &
+        drug_purchases$prev_gap_days >= lower &
+        drug_purchases$prev_gap_days <= upper
+
+    raw_ddd <- if (has_ddd) {
+        drug_purchases$DDDPerPack * n_packs_imputed
+    } else {
+        rep(NA_real_, nrow(drug_purchases))
+    }
+
+    effective_ddd <- raw_ddd
+    if (has_ddd && has_pack_size) {
+        ddd_per_pill <- drug_purchases$DDDPerPack / drug_purchases$PackageSize
+        dispensing_ddd <- dose_dispensing_window_days * assumed_daily_pills * ddd_per_pill
+        replace_idx <- drug_purchases$is_dose_dispensing &
+            !is.na(drug_purchases$DDDPerPack) &
+            !is.na(drug_purchases$PackageSize) &
+            drug_purchases$PackageSize > 0
+        effective_ddd[replace_idx] <- dispensing_ddd[replace_idx]
+    }
+
+    drug_purchases$effective_ddd <- effective_ddd
+    drug_purchases
+}
+
+
 #' @title Create drug response object
 #' @param conn A `fg_data_connection` object containing the data sources
 #' @param lablist A character vector of OMOP concept IDs for the labs of interest
@@ -137,12 +229,20 @@ summary_min <- function(lab_values) {
 #' @param finngen_ids Optional character vector of FINNGENIDs to restrict analysis
 #' @param remove_outliers_sd Optional numeric value (1-6) to remove outliers based on standard deviations
 #' @param external_labs Optional data frame with external lab measurements. If provided, this will be used instead of Kanta lab values. Must contain columns: FINNGENID, OMOP_CONCEPT_ID, EVENT_AGE, VALUE
+#' @param dose_dispensing_window_days Numeric, expected dispensing window in days when a pharmacy uses dose dispensing (default 14). Purchases whose previous same-individual purchase fell within this window (+/- tolerance) are treated as having delivered only the window, not the full pack recorded.
+#' @param dose_dispensing_tolerance_days Numeric, symmetric tolerance around `dose_dispensing_window_days` (default 3).
+#' @param assumed_daily_pills Numeric, pills/day assumed during dose dispensing (default 1).
+#' @param min_adherence Optional numeric, exclude individuals whose `adherence_ratio_followup` (effective DDDs supplied during follow-up divided by follow-up duration in days) is below this threshold. Default NULL (no exclusion).
 #' @return drug.response object. The `responses` data frame within the object contains the summarized response data for each individual, including baseline and followup lab values, drug purchase summaries, and calculated response. The `all_measurements` and `all_drug_purchases` data frames contain the raw lab measurements and drug purchase data used in the analysis, respectively.
 #' @export
 create_drug_response <- function(conn, lablist, druglist,
                                  before_period, after_period, summary_functions=list(summary_median, summary_median), filter_min_max = c(-Inf, Inf),
                                  use_lab_free_text_values = TRUE, use_only_reimbursement_drugs = FALSE,
-                                 finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL) {
+                                 finngen_ids = NULL, remove_outliers_sd = NULL, external_labs = NULL,
+                                 dose_dispensing_window_days = 14,
+                                 dose_dispensing_tolerance_days = 3,
+                                 assumed_daily_pills = 1,
+                                 min_adherence = NULL) {
     # Validate all input parameters immediately
     if (!inherits(conn, "fg_data_connection")) {
         stop("conn must be an fg_data_connection object")
@@ -161,6 +261,10 @@ create_drug_response <- function(conn, lablist, druglist,
     assertLogical(use_only_reimbursement_drugs)
     assertNumeric(remove_outliers_sd, null.ok = TRUE, len = 1, lower=1, upper=6)
     assertCharacter(finngen_ids, null.ok = TRUE, any.missing = FALSE)
+    assertNumber(dose_dispensing_window_days, lower = 1)
+    assertNumber(dose_dispensing_tolerance_days, lower = 0)
+    assertNumber(assumed_daily_pills, lower = 0)
+    assertNumeric(min_adherence, null.ok = TRUE, len = 1, lower = 0)
     
     # Validate external_labs if provided
     validate_external_labs(external_labs)
@@ -206,7 +310,14 @@ create_drug_response <- function(conn, lablist, druglist,
     print("Querying purchases...")
     drug_purchases <- get_drug_purchases(conn, druglist, all_fg_ids,
         use_only_reimbursement = use_only_reimbursement_drugs)
-    
+
+    drug_purchases <- annotate_effective_ddd(
+        drug_purchases,
+        dose_dispensing_window_days = dose_dispensing_window_days,
+        dose_dispensing_tolerance_days = dose_dispensing_tolerance_days,
+        assumed_daily_pills = assumed_daily_pills
+    )
+
     # get_drug_purchases returns ATC column by default (renamed from CODE1)
     # Also capture drug names from VNR data if available
     if ("MedicineName" %in% colnames(drug_purchases) && "Substance" %in% colnames(drug_purchases)) {
@@ -265,9 +376,20 @@ create_drug_response <- function(conn, lablist, druglist,
         )
 
     print("generating response summary...")
-    lab_response <- generate_response_summary(lab_measurements , drug_purchases = drug_purchases, before_period = before_period, 
+    lab_response <- generate_response_summary(lab_measurements , drug_purchases = drug_purchases, before_period = before_period,
     after_period = after_period, summary_functions = summary_functions)
     cat(paste0("Number of individuals with response data: ", nrow(lab_response %>% filter(!is.na(.data$response)))))
+
+    if (!is.null(min_adherence)) {
+        before_n <- nrow(lab_response %>% filter(!is.na(.data$response)))
+        keep <- !is.na(lab_response$adherence_ratio_followup) &
+            lab_response$adherence_ratio_followup >= min_adherence
+        lab_response <- lab_response[keep, , drop = FALSE]
+        after_n <- nrow(lab_response %>% filter(!is.na(.data$response)))
+        print(paste0("Excluded ", before_n - after_n,
+                     " individuals with adherence_ratio_followup < ", min_adherence,
+                     " (or NA). Remaining with response data: ", after_n))
+    }
 
     drug.response(
         responses = lab_response, lab_measurements = lab_measurements,
@@ -349,13 +471,18 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
     # Check if DDDPerPack column exists before summarizing
     has_ddd_column <- "DDDPerPack" %in% colnames(drug_purchases)
     has_n_packs_column <- "N_PACKS" %in% colnames(drug_purchases)
+    has_effective_ddd_column <- "effective_ddd" %in% colnames(drug_purchases)
     # Impute N_PACKS: use actual value if present and not NA, otherwise default to 1
     if (has_n_packs_column) {
-        drug_purchases$N_PACKS_imputed <- ifelse(!is.na(drug_purchases$N_PACKS), 
+        drug_purchases$N_PACKS_imputed <- ifelse(!is.na(drug_purchases$N_PACKS),
                                                   drug_purchases$N_PACKS, 1)
     } else {
         drug_purchases$N_PACKS_imputed <- 1
     }
+
+    # Followup duration in days, used as the denominator for adherence ratios
+    followup_duration_days <- (after_period[2] - after_period[1]) * 365.25
+    first_drug_to_end_of_fu_days <- after_period[2] * 365.25
 
     print("Summarizing drug purchases per individual in response periods...")
     start_time <- Sys.time()
@@ -373,10 +500,27 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
                 n_purchases_between_baseline_and_followup = length(between_baseline_and_followup_idx[[1]]),
                 n_purchases_first_drug_to_end_of_fu = n_purchases_followup + n_purchases_between_baseline_and_followup,
                 ### Calculate total DDDs purchased in followup period. assume N_PACK is 1 if missing
-                total_ddd_followup = sum(.data$DDDPerPack[followup_idx[[1]]] * .data$N_PACKS_imputed[followup_idx[[1]]], 
+                total_ddd_followup = sum(.data$DDDPerPack[followup_idx[[1]]] * .data$N_PACKS_imputed[followup_idx[[1]]],
                                         na.rm = TRUE),
-                total_ddd_first_drug_to_end_of_fu = total_ddd_followup + sum(.data$DDDPerPack[between_baseline_and_followup_idx[[1]]] * .data$N_PACKS_imputed[between_baseline_and_followup_idx[[1]]], 
-                                        na.rm = TRUE) + sum(.data$DDDPerPack[baseline_idx[[1]]] * .data$N_PACKS_imputed[baseline_idx[[1]]], na.rm = TRUE),                  
+                total_ddd_first_drug_to_end_of_fu = total_ddd_followup + sum(.data$DDDPerPack[between_baseline_and_followup_idx[[1]]] * .data$N_PACKS_imputed[between_baseline_and_followup_idx[[1]]],
+                                        na.rm = TRUE) + sum(.data$DDDPerPack[baseline_idx[[1]]] * .data$N_PACKS_imputed[baseline_idx[[1]]], na.rm = TRUE),
+                ### Effective DDDs adjust the recorded amount for purchases identified as dose-dispensed.
+                ### When `effective_ddd` is absent (older callers), fall back to the raw calculation.
+                total_effective_ddd_followup = if (has_effective_ddd_column) {
+                    sum(.data$effective_ddd[followup_idx[[1]]], na.rm = TRUE)
+                } else {
+                    total_ddd_followup
+                },
+                total_effective_ddd_first_drug_to_end_of_fu = if (has_effective_ddd_column) {
+                    sum(.data$effective_ddd[c(followup_idx[[1]], between_baseline_and_followup_idx[[1]], baseline_idx[[1]])], na.rm = TRUE)
+                } else {
+                    total_ddd_first_drug_to_end_of_fu
+                },
+                n_dose_dispensing_followup = if (has_effective_ddd_column) {
+                    sum(.data$is_dose_dispensing[followup_idx[[1]]], na.rm = TRUE)
+                } else {
+                    NA_integer_
+                },
                 n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
             ) %>% select(-followup_idx, -baseline_idx, -between_baseline_and_followup_idx)
     } else {
@@ -393,9 +537,18 @@ generate_response_summary <- function(lab_measurements, drug_purchases=NULL, bef
                 n_purchases_first_drug_to_end_of_fu = n_purchases_followup + n_purchases_between_baseline_and_followup,
                 total_ddd_followup = NA_real_,
                 total_ddd_first_drug_to_end_of_fu = NA_real_,
+                total_effective_ddd_followup = NA_real_,
+                total_effective_ddd_first_drug_to_end_of_fu = NA_real_,
+                n_dose_dispensing_followup = NA_integer_,
                 n_purchases_after_followup = sum(.data$purchase_period == "After_Followup")
             ) %>% select(-followup_idx, -baseline_idx, -between_baseline_and_followup_idx)
     }
+
+    drug_purch_summaries <- drug_purch_summaries %>%
+        dplyr::mutate(
+            adherence_ratio_followup = .data$total_effective_ddd_followup / followup_duration_days,
+            adherence_ratio_first_drug_to_end_of_fu = .data$total_effective_ddd_first_drug_to_end_of_fu / first_drug_to_end_of_fu_days
+        )
 
     lab_response <- lab_response %>%
         dplyr::left_join(drug_purch_summaries, by = "FINNGENID")
