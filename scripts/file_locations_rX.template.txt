@@ -1,0 +1,8 @@
+in_pheno=""
+in_labs=""
+in_minimum=""
+in_cov_pheno=""
+in_endpoint=""
+in_vnr=""
+in_anthrop=""
+in_drug_events=""

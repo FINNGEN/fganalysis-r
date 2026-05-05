@@ -113,8 +113,7 @@ install.packages("/usr/finngen-repos/cran/source/src/contrib/duckdbfs_0.1.0.tar.
 
 library(devtools)
 load_all("/finngen/library-green/code/fganalysis/")
-conn <- connect_fgdata("/finngen/library-green/code/fganalysis/config/db_config_sb.json")
-
+conn <- connect_fgdata("/finngen/shared_nfs/Resources/fganalysis/R14/db_config_sb_r14.json")
 
 ```
 
@@ -124,24 +123,24 @@ The package accesses data through a centralized connection object. The connectio
 
 ### Configuration
 
-The `connect_fgdata()` function reads a JSON configuration file to set up data sources. A sample configuration file `inst/config/db_config.json` looks like this:
+The `connect_fgdata()` function reads a JSON configuration file to set up data sources. A sample configuration file `inst/config/db_config_sb.template.json` looks like this:
 
 ```json
 {
     "pheno": {
-        "path": "/path/to/finngen_R13_service_sector_detailed_longitudinal_1.0.parquet",
+        "path": "/path/to/data/pheno.dirname.parquet",
         "type": "parquet-hive"
     },
     "labs": {
-        "path": "/path/to/finngen_R13_kanta_lab_1.0.parquet",
+        "path": "/path/to/data/labs.filename.parquet",
         "type": "parquet"
     },
     "minimum": {
-        "path": "/path/to/finngen_R13_minimum_extended_1.0.parquet",
+        "path": "/path/to/data/minimum.filename.parquet",
         "type": "parquet"
     },
     "cov_pheno": {
-        "path": "/path/to/R13_COV_PHENO_V0.parquet",
+        "path": "/path/to/data/cov_pheno.filename.parquet",
         "type": "parquet"
     }
 }
@@ -155,24 +154,24 @@ The main data tables are:
 - **`minimum`**: Minimum phenotype data for individuals.
 - **`cov_pheno`**: Covariate phenotype data.
 - **`endpoint`**: Endpoint data in long format.
-- **`vnr`**: VNR (VNR nordic drug article numbering, https://wiki.vnr.fi/?page_id=36 )data.
-- **`long_anthropometric`**: Longitudinal anthropometric measurements which is weight, height, blood pressure, smoking and alcohol audits. collected during hospital and primary care visits. (gs://finngen-production-library-red/finngen_R13/hilmo_avohilmo_extended_1.0/finngen_R13_hilmo_avohilmo_extended_readme_1.0.txt).
-- **`drug_events`**: Combines KELA reimbursement, KELA purchase and Kanta prescription data. This data is used by default for all drug analyses https://docs.finngen.fi/finngen-data-specifics/red-library-data-individual-level-data/what-phenotype-files-are-available-in-sandbox-1/drug-events
+- **`vnr`**: [VNR ("Nordic Article Number")](https://wiki.vnr.fi/?page_id=36) medication identification code file.
+- **`long_anthropometric`**: Longitudinal anthropometric measurements which is weight, height, blood pressure, smoking and alcohol audits, collected during hospital and primary care visits. See the [relevant FinnGen handbook page](https://docs.finngen.fi/finngen-data-specifics/red-library-data-individual-level-data/what-phenotype-files-are-available-in-sandbox-1/other-registers/hilmo-and-avohilmo-extended-data) for more information.
+- **`drug_events`**: Combines KELA reimbursement, KELA purchase and Kanta prescription data. This data is used by default for all drug analyses. For more information see the [handbook page](https://docs.finngen.fi/finngen-data-specifics/red-library-data-individual-level-data/what-phenotype-files-are-available-in-sandbox-1/drug-events).
   
 
 ### Local Configuration
 
-For local development, you can create a `inst/config/db_config_local.json` file with paths specific to your environment. This file is automatically ignored by git, so you can customize it without affecting the repository. The package will look for this file first, and fall back to `inst/config/db_config.json` if it doesn't exist.
+For local development, you can create a `inst/config/db_config_local.json` file with paths specific to your environment. This file is automatically ignored by git, so you can customize it without affecting the repository.
 
 Example local configuration:
 ```json
 {
     "pheno": {
-        "path": "/your/local/path/to/finngen_R13_service_sector_detailed_longitudinal_1.0.parquet",
+        "path": "/your/local/path/to/pheno.dirname.parquet",
         "type": "parquet-hive"
     },
     "labs": {
-        "path": "/your/local/path/to/finngen_R13_kanta_lab_1.0.parquet",
+        "path": "/your/local/path/to/labs.filename.parquet",
         "type": "parquet"
     }
 }
@@ -181,11 +180,11 @@ Example local configuration:
 ### Connecting to Data
 
 To establish a connection, pass the path to your configuration file to `connect_fgdata`:
-
 ```R
-# The path can be relative or absolute
-# In the FinnGen Sandbox, a pre-configured file is available
-=======
+conn <- connect_fgdata("/path/to/fganalysis/inst/config/db_config_local.json")
+```
+The path can be relative or absolute. In the FinnGen Sandbox, a pre-configured file is available (see above)
+
 ## Usage
 
 ### Functions
@@ -204,11 +203,11 @@ Here is a simple example of how to use the package:
 # Load the package
 
 load_all("/finngen/shared_nfs/finngen/code/fganalysis/")
-# Get connection to data sources. In sanbox you can use this
-conn <- connect_fgdata("/finngen/shared_nfs/finngen/code/drugResponsePackage/config/db_config_sb.json")
+# Get connection to data sources. In sandbox, to load the latest data (R14), use
+conn <- connect_fgdata("/finngen/shared_nfs/Resources/fganalysis/R14/db_config_sb_r14.json")
 
 # Or using a local config file
-conn <- connect_fgdata("inst/config/db_config.json")
+conn <- connect_fgdata("inst/config/db_config_local.json")
 
 # For testing or development with small datasets, you can create a mock connection:
 # mock_conn <- create_mock_connection(
@@ -925,6 +924,34 @@ This branch adds comprehensive drug purchase metadata and harmonizes period term
 
 Contributions and improvements are welcome.
 
+### Generating data files for new releases
+The `scripts/` folder provides (bash) shell scripts that can generate the required .parquet files and a template "file locations" file from which the shell script reads the input file paths. Typically, new release files should be generated in refinery and then copied into the red library so that they can be accessed in sandbox. However, if needed, a script is provided to perform the conversion within the sandbox environment.
+
+#### Outside of the FinnGen sandbox
+The script `scripts/prepare_data_refinery.sh` is written for use outside of the sandbox environment and copies the required files from Google Cloud buckets. The bash script assumes that `duckdb` and `python` (3.0 or higher) are already installed on the system and requires a file specifying the bucket path (starting with `gs://`) of the needed input files. A template file `scripts/file_locations_rX.template.txt` can be used to specify the bucket paths.
+
+To use this script:
+1. Ensure `duckdb`, `python` (v3.0 or higher) and `R` (with libraries `dplyr`, `ggplot2` and `data.table`) are installed
+2. Copy `scripts/prepare_data_refinery.sh` to your chosen directory
+3. Copy `scripts/process_hilmo_avohilmo.R` and `scripts/process_drugs.py` to your chosen directory
+4. Copy `file_locations_rX.template.txt` to your chosen directory and edit with the location of the required input files
+5. Edit the line starting with `source` in your copied `prepare_data_refinery.sh` so that it sources the edited file locations file
+6. `cd` to your chosen directory (if not already there), add executable permission to your copied `prepare_data_refinery.sh` and run using `./prepare_data_refinery.sh`. Depending on system resources and download speed, the process may take several hours.
+7. Once the required (.parquet and .tsv) files are generated, upload them to the relevant bucket and use the config template at `inst/config/db_config.template.json` to create an updated config file.
+
+#### Within FinnGen sandbox
+The script `prepare_data_sandbox.sh` is intended for use within the FinnGen sandbox environment. As `duckdb` is not currently installed, it requires that the `duckdb` R library is installed (see [Installation](#installation)) and that the user has sufficient space to create the output files (~10GB as of R14).
+
+To use this script:
+1. Create an instance of the largest virtual machine (16 CPUs, 128 GB memory)
+2. Ensure that R libraries `duckdb`, `dplyr`, `ggplot2` and `data.table` are installed
+3. Copy `prepare_data_sandbox.sh`, `process_hilmo_avohilmo.R`, `process_drugs.py` and `file_locations_rX.template.txt` from `/finngen/shared_nfs/finngen/code/fganalysis/scripts/` to your chosen directory
+4. Edit the copied `file_locations_rX.template.txt` to point to the input files corresponding to the latest release
+5. Edit the line starting with `source` in your copied `prepare_data_sandbox.sh` so that it sources the edited file locations file
+6. In the terminal, `cd` to your chosen directory (if not already there), add executable permission to your copied `prepare_data_sandbox.sh` and run using `./prepare_data_sandbox.sh`. The script may take up to 3 hours to run. 
+7. Copy the output .parquet and .tsv files to `/finngen/shared_nfs/Resources/fganalysis/RX/`, where `X` is the release number (create the directory first if it doesn't exist)
+8. Create a copy of `/finngen/shared_nfs/finngen/code/fganalysis/inst/config/db_config_sb.template.json` and name it `db_config_sb_rX.json` (where `X` is the release number), then edit the paths to point to the files copied in the previous step. Then copy `db_config_sb_rX.json` to `/finngen/shared_nfs/Resources/fganalysis/RX/`.
+
 ### Running Tests
 
 The package uses `testthat` for unit tests. To run the tests, use:
@@ -938,7 +965,8 @@ When adding new functionality, please add corresponding unit tests in the `tests
 ## Authors
 
 - **Mitja Kurki, PhD** (Author, Creator) - <mkurki@broadinstitute.org>
-- **Reza Jaba, PhD** (Contributor) - <rjabal@broadinstitute.org>
+- **Samuel Jones, PhD** (Maintainer, Contributor) - <samuel.jones@helsinki.fi>
+- **Reza Jabal, PhD** (Contributor) - <rjabal@broadinstitute.org>
 - **Arto Lehisto, MSc** (Contributor) - <arto.lehisto@helsinki.fi>
 
 ## License

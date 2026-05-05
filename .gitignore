@@ -8,6 +8,7 @@
 
 # R CMD check results
 .Rcheck/
+..Rcheck/
 *.Rcheck/
 
 # Log files
@@ -24,8 +25,8 @@
 .cache/
 
 # Local configuration files (keep separate from committed version)
-config/db_config.json
-config/db_config_local.json
+inst/config/db_config_r*.json
+inst/config/db_config_local.json
 
 # Output directories that might be created during testing
 output/
