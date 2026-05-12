@@ -26,7 +26,7 @@
         "colclasses": {"VNR": "character"}
     },
     "long_anthropometric": {
-        "path": "/finngen/shared_nfs/Resources/fganalysis/R14/finngen_R14_hilmo_avohilmo_extended_1.0_dedup_fixbp.parquet",
+        "path": "/finngen/shared_nfs/Resources/fganalysis/R14/finngen_R14_hilmo_avohilmo_extended_2.0_dedup_fixbp.parquet",
         "type": "parquet"
     },
         "drug_events": {
