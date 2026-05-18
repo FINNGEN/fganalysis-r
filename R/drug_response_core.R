@@ -204,10 +204,10 @@ create_drug_response <- function(conn, lablist, druglist,
 
     all_fg_ids <- unique(c(lab_measurements$FINNGENID, finngen_ids))
     print("Querying purchases...")
-    drug_purchases <- get_drug_purchases(conn, druglist, all_fg_ids,
+    drug_purchases <- get_drug_events(conn, druglist, all_fg_ids,
         use_only_reimbursement = use_only_reimbursement_drugs)
-    
-    # get_drug_purchases returns ATC column by default (renamed from CODE1)
+
+    # get_drug_events returns ATC column by default (renamed from CODE1)
     # Also capture drug names from VNR data if available
     if ("MedicineName" %in% colnames(drug_purchases) && "Substance" %in% colnames(drug_purchases)) {
         dr_first_purchase <- drug_purchases %>%
