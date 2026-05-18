@@ -6,9 +6,9 @@ NULL
 # Declare global variables to avoid R CMD check notes
 utils::globalVariables(c("vnr"))
 
-#' @title Function to compute purchase frequencies for all VNRs in parallel. 
+#' @title Function to compute purchase frequencies for all VNRs in parallel.
 #' @description Calls compute_purchase_frequency for each VNR, check that function for details of computation
-#' @param data data.frame of purchases for multiple VNRs as returned by get_drug_purchases
+#' @param data data.frame of drug events for multiple VNRs as returned by get_drug_events()
 #' @param gap maximum permissible gap between purchases to consider them part of the same treatment interval
 #' @param use_pills_per_pack_only logical, whether to use only PackageSize + gap to determine treatment intervals default TRUE
 #' @param n_workers number of parallel workers to use, default NULL uses detectCores() - 1
@@ -52,8 +52,8 @@ parallel_compute_purchase_frequencies_for_VNRs <- function(data, gap, use_pills_
 
 #' @title Function to compute purchase frequency
 #' @description For a given set of purchases for a single VNR, compute the intervals between purchases for each individual. Purchases are considered part of the same treatment interval if they are within max(PackageSize, DDDPerPack) + gap days of each other.
-#' @param purchases data.frame of purchases for a single VNR as returned by get_drug_purchases. 
-#' if use_pills_per_pack_only Uses max(PackageSize, DDDPerPack) + gap else use packageSize + gap to determine which adjacent purchases are considered part of the same treatment interval 
+#' @param purchases data.frame of drug events for a single VNR as returned by get_drug_events().
+#' if use_pills_per_pack_only Uses max(PackageSize, DDDPerPack) + gap else use packageSize + gap to determine which adjacent purchases are considered part of the same treatment interval
 #' @param gap maximum permissible gap between purchases
 #' @param use_pills_per_pack_only logical, whether to use only PackageSize + gap to determine treatment intervals default TRUE
 #' @return data.frame of purchase intervals

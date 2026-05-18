@@ -54,7 +54,8 @@ The package is organized into logical modules for better maintainability:
 
 - **`data_access.R`** - Data retrieval and covariate functions
   - `get_lab_measurements()` - Retrieves lab measurement data
-  - `get_drug_purchases()` - Retrieves drug purchase data
+  - `get_drug_events()` - Retrieves drug events (purchases, prescriptions, deliveries)
+  - `get_drug_purchases()` - (DEPRECATED) Use `get_drug_events()` instead
   - `get_first_purchase()` - Gets first drug purchase for each individual
   - `join_covariates()` - Joins covariate data to any data frame with FINNGENID
   - `join_covariates_to_labs()` - Joins covariate data specifically to lab measurements
@@ -193,7 +194,7 @@ The package includes several key functions:
 
 - `create_drug_response()`: Generates a drug response dataset based on lab measurements and drug purchases.
 - `summarize_drug_response()`: Creates a summary PDF and text tables of drug response data.
-- `get_lab_measurements` and `get_drug_purchases` to query for lab values and purchases.
+- `get_lab_measurements()` and `get_drug_events()` to query for lab values and drug events.
 
 ## Examples
 
@@ -237,8 +238,8 @@ nrow(ibd)
 ## Get all labs with omopid 3007461
 labs <- get_lab_measurements(conn$labs, c("3007461"))
 
-## Get all drug purchases with ATC codes starting with L01B
-dr <- get_drug_purchases(conn, c("L01B"))
+## Get all drug events with ATC codes starting with L01B
+dr <- get_drug_events(conn, c("L01B"))
 
 # Create drug response data of lab changes after initiating a drug.
 ## First define time intervals from drug purchase to summarise lab values
@@ -313,8 +314,9 @@ This package provides a suite of functions for drug response analysis.
   - `return_cols`: Columns to return from the lab data
   - `finngen_ids`: Optional vector of FINNGENIDs to filter the data
   - `lazy`: If TRUE, returns a lazy tbl object instead of collecting data
-- **`get_drug_purchases(all_phenos, druglist, finngen_ids = NULL, return_cols = c("FINNGENID","EVENT_AGE", ATC="CODE1", REIMB_CODE="CODE2", VNR="CODE3", N_PACKS="CODE4"), lazy = FALSE)`**: Extracts drug purchases for specified ATC codes. The matching is done on the beginning of the ATC code.
-- **`get_first_purchase(all_phenos, druglist, finngen_ids = NULL, return_cols = c("FINNGENID","EVENT_AGE","CODE1"), lazy = FALSE)`**: A wrapper around `get_drug_purchases` to get only the first purchase event for each individual.
+- **`get_drug_events(conn, druglist, finngen_ids = NULL, use_only_reimbursement = FALSE, lazy = FALSE)`**: Extracts drug events (purchases, prescriptions, deliveries) for specified ATC codes. The matching is done on the beginning of the ATC code. Data is retrieved from the merged drug events file which contains reimbursement and delivery data.
+- **`get_drug_purchases(conn, druglist, finngen_ids = NULL, use_only_reimbursement = FALSE, lazy = FALSE)`**: (DEPRECATED) Use `get_drug_events()` instead. This function has been renamed to better reflect that it retrieves drug events from the merged file containing more than just purchases.
+- **`get_first_purchase(conn, druglist, finngen_ids = NULL, use_only_reimbursement = FALSE, lazy = FALSE)`**: A wrapper around `get_drug_events` to get only the first drug event for each individual.
 
 ### Covariate Handling
 The package follows the **single responsibility principle** for covariate handling. Core functions focus on their primary purpose, while covariate joining is handled by dedicated helper functions.

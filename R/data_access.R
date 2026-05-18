@@ -52,18 +52,20 @@ get_lab_measurements <- function(all_labs, lablist, require_values=TRUE,
 }
 
 
-#' @title Get drug purchases from FinnGen data
+#' @title Get drug events from FinnGen data
+#' @description Retrieves drug events (including purchases, prescriptions, and deliveries) from FinnGen data.
+#' The function pulls from the merged drug events file which contains more than just purchases.
 #' @param conn finngen data connection object
 #' @param druglist vector of drug ATC codes. The ATC codes are matched with the first part of the code (e.g. A01*)
 #' @param finngen_ids vector of FINNGENIDs to filter the data. leave empty to get all
 #' @param use_only_reimbursement logical, if TRUE, use only reimbursement data (default FALSE) and combine reimbursement and delivery data if available in conn
 #' @param lazy logical, if TRUE, return a lazy tbl object
-#' @return data frame with drug purchases
+#' @return data frame with drug events
 #' @export
 #' @importFrom dplyr %>% filter select collect rename
 #' @importFrom rlang sym :=
 #' @import stringr
-get_drug_purchases <- function(conn, druglist, finngen_ids=NULL,use_only_reimbursement = FALSE,
+get_drug_events <- function(conn, druglist, finngen_ids=NULL,use_only_reimbursement = FALSE,
                                lazy=FALSE) {
 
     ## check that conn is a fg_data_connection object and has pheno data name
@@ -79,10 +81,10 @@ get_drug_purchases <- function(conn, druglist, finngen_ids=NULL,use_only_reimbur
                         paste0(druglist, collapse = '|'),
                         ")")
 
-    
+
     if ("drug_events" %in% names(conn) & !use_only_reimbursement) {
         print("Using drug data combining reimbursement and delivery data.")
-        drugs <- conn$drug_events %>% 
+        drugs <- conn$drug_events %>%
                 dplyr::filter( str_detect( .data$ATC, drugs_regex ) ) %>% rename(N_PACKS = "MEDICATION_QUANTITY")
     } else {
         print("Using drug data from reimbursement data only! i.e. longitudinal data from purchase registry.")
@@ -111,6 +113,37 @@ get_drug_purchases <- function(conn, druglist, finngen_ids=NULL,use_only_reimbur
 }
 
 
+#' @title Get drug purchases from FinnGen data (DEPRECATED)
+#' @description DEPRECATED: This function has been renamed to get_drug_events() to better reflect that
+#' it retrieves drug events from the merged drug events file, which contains more than just purchases
+#' (including prescriptions, deliveries, and reimbursements).
+#'
+#' Please use get_drug_events() instead. This function will be removed in a future version.
+#' @param conn finngen data connection object
+#' @param druglist vector of drug ATC codes. The ATC codes are matched with the first part of the code (e.g. A01*)
+#' @param finngen_ids vector of FINNGENIDs to filter the data. leave empty to get all
+#' @param use_only_reimbursement logical, if TRUE, use only reimbursement data (default FALSE) and combine reimbursement and delivery data if available in conn
+#' @param lazy logical, if TRUE, return a lazy tbl object
+#' @return data frame with drug events
+#' @export
+#' @importFrom dplyr %>% filter select collect rename
+#' @importFrom rlang sym :=
+#' @import stringr
+get_drug_purchases <- function(conn, druglist, finngen_ids=NULL,use_only_reimbursement = FALSE,
+                               lazy=FALSE) {
+
+    # Issue deprecation warning
+    warning("get_drug_purchases() is deprecated and will be removed in a future version. ",
+            "Please use get_drug_events() instead. ",
+            "The function retrieves drug events from the merged drug events file, which contains ",
+            "more than just purchases (including prescriptions, deliveries, and reimbursements).",
+            call. = FALSE)
+
+    # Call the new function
+    get_drug_events(conn, druglist, finngen_ids, use_only_reimbursement, lazy)
+}
+
+
 #' @title Get first drug purchase from FinnGen data
 #' @param conn finngen data connection object
 #' @param druglist vector of drug ATC codes. The ATC codes are matched with the first part of the code (e.g. A01*)
@@ -124,7 +157,7 @@ get_first_purchase <- function(conn, druglist, finngen_ids=NULL,
                                 use_only_reimbursement = FALSE,
                                lazy=FALSE) {
 
-  first_purch <- get_drug_purchases(conn, druglist, finngen_ids, lazy=TRUE, use_only_reimbursement = use_only_reimbursement) %>%
+  first_purch <- get_drug_events(conn, druglist, finngen_ids, lazy=TRUE, use_only_reimbursement = use_only_reimbursement) %>%
     group_by(.data$FINNGENID) %>%
     filter(.data$EVENT_AGE == min(.data$EVENT_AGE)) %>% distinct(.data$EVENT_AGE, .keep_all = TRUE) %>%
     ungroup()
