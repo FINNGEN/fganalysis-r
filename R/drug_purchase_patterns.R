@@ -51,22 +51,47 @@ parallel_compute_purchase_frequencies_for_VNRs <- function(data, gap, use_pills_
 
 
 #' @title Function to compute purchase frequency
-#' @description For a given set of purchases for a single VNR, compute the intervals between purchases for each individual. Purchases are considered part of the same treatment interval if they are within max(PackageSize, DDDPerPack) + gap days of each other.
-#' @param purchases data.frame of purchases for a single VNR as returned by get_drug_purchases. 
-#' if use_pills_per_pack_only Uses max(PackageSize, DDDPerPack) + gap else use packageSize + gap to determine which adjacent purchases are considered part of the same treatment interval 
+#' @description For a given set of purchases for a single VNR, compute the intervals between purchases for each individual. Purchases are considered part of the same treatment interval if they are within max(PackageSize, DDDPerPack) * N_PACKS + gap days of each other (or max(PackageSize, DDDPerPack) + gap if use_pills_per_pack_only is FALSE). When N_PACKS column is present, it accounts for multiple packs purchased in a single transaction.
+#' @param purchases data.frame of purchases for a single VNR as returned by get_drug_purchases. Should contain N_PACKS column if available (defaults to 1 if missing).
+#' if use_pills_per_pack_only Uses PackageSize * N_PACKS + gap, else use max(PackageSize, DDDPerPack) * N_PACKS + gap to determine which adjacent purchases are considered part of the same treatment interval 
 #' @param gap maximum permissible gap between purchases
 #' @param use_pills_per_pack_only logical, whether to use only PackageSize + gap to determine treatment intervals default TRUE
-#' @return data.frame of purchase intervals
+#' @return data.frame of purchase intervals with total_pills column showing total pills from previous purchase
 #' @export
 compute_purchase_frequency <- function(purchases, gap=30, use_pills_per_pack_only=TRUE){
     purchases <- purchases %>% arrange(.data$FINNGENID, .data$APPROX_EVENT_DAY)
+    
+    # Handle N_PACKS column - default to 1 if missing or NA
+    if(!"N_PACKS" %in% names(purchases)){
+        purchases$N_PACKS <- 1
+    } else {
+        purchases$N_PACKS[is.na(purchases$N_PACKS)] <- 1
+    }
+    
     intervals <- list()
     for(i in 2:nrow(purchases) ){ 
         row <- purchases[i,]
-        allowed_gap <- if(!use_pills_per_pack_only) max(row$PackageSize, row$DDDPerPack,na.rm=TRUE) + gap else row$PackageSize + gap
-        if(row$FINNGENID == purchases[i-1,]$FINNGENID & row$APPROX_EVENT_DAY - purchases[i-1,]$APPROX_EVENT_DAY <= allowed_gap){
-            intervals[[length(intervals)+1]] <- data.frame(VNR=row$VNR, ATC=row$ATC, medicine=row$Substance, FINNGENID=row$FINNGENID, 
-            cadence= as.numeric(row$APPROX_EVENT_DAY - purchases[i-1,]$APPROX_EVENT_DAY))
+        prev_row <- purchases[i-1,]
+        
+        # Calculate total pills from previous purchase (PackageSize * N_PACKS)
+        prev_total_pills <- prev_row$PackageSize * prev_row$N_PACKS
+        
+        # Calculate allowed gap based on previous purchase's total supply
+        if(!use_pills_per_pack_only) {
+            allowed_gap <- max(prev_row$PackageSize, prev_row$DDDPerPack, na.rm=TRUE) * prev_row$N_PACKS + gap
+        } else {
+            allowed_gap <- prev_total_pills + gap
+        }
+        
+        if(row$FINNGENID == prev_row$FINNGENID & row$APPROX_EVENT_DAY - prev_row$APPROX_EVENT_DAY <= allowed_gap){
+            intervals[[length(intervals)+1]] <- data.frame(
+                VNR=row$VNR, 
+                ATC=row$ATC, 
+                medicine=row$Substance, 
+                FINNGENID=row$FINNGENID, 
+                cadence= as.numeric(row$APPROX_EVENT_DAY - prev_row$APPROX_EVENT_DAY),
+                total_pills=prev_total_pills
+            )
         }
     }
     return(do.call(rbind, intervals))
